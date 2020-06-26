@@ -126,7 +126,7 @@ var
   ResultCode : Integer;
   Command    : String;
   UpSuccess  : Boolean = False;
-  FatalError : Boolean = False;
+  ErrorCode  : Integer = 0;
   AlreadyDel : Boolean = False;
 begin
   data := TStringList.Create;
@@ -203,8 +203,8 @@ begin
 
             if dmData.DebugLevel >= 1 then
             begin
-              Writeln('Response  :',Response);
-              Writeln('ResultCode:',ResultCode)
+              Writeln('Response  : ',Response);
+              Writeln('ResultCode: ',ResultCode)
             end
           end
           else begin
@@ -216,11 +216,15 @@ begin
 
           if UpSuccess then
           begin
-            Response := dmLogUpload.GetResultMessage(WhereToUpload,Response,ResultCode,FatalError);
-            if FatalError then
+            Response := dmLogUpload.GetResultMessage(WhereToUpload,Response,ResultCode,ErrorCode);
+            if (ErrorCode = 1) then
             begin
               ToMainThread('Could not delete original QSO data!','');
               Break
+            end
+            else if (ErrorCode = 2) then
+            begin
+              ToMainThread('Could not delete original QSO data. Reason: ' + Response,'');
             end
             else
               ToMainThread('','OK');
@@ -246,20 +250,20 @@ begin
           Writeln('data.Text:');
           Writeln(data.Text);
           Writeln('-----------');
-          Writeln('Response  :',Response);
-          Writeln('ResultCode:',ResultCode);
+          Writeln('Response  : ',Response);
+          Writeln('ResultCode: ',ResultCode);
           Writeln('-----------')
         end;
 
         if UpSuccess then
         begin
-          Response := dmLogUpload.GetResultMessage(WhereToUpload,Response,ResultCode,FatalError);
+          Response := dmLogUpload.GetResultMessage(WhereToUpload,Response,ResultCode,ErrorCode);
           if (Response='OK') then
             ToMainThread('','OK')
           else
             ToMainThread(Response,'');
 
-          if FatalError then
+          if (ErrorCode = 1) then
           begin
             if AlreadyDel then  //if cmd was update, delete was successful but new insert was not
             begin
@@ -276,14 +280,14 @@ begin
             dmLogUpload.MarkAsUpDeleted(dmLogUpload.Q.Fields[0].AsInteger)
           end;
           ToMainThread('Upload failed! Check Internet connection','');
-          FatalError := True;
+          ErrorCode := 1;
           Break
         end;
         Sleep(2000); //we don't want to make small DDOS attack to server
         dmLogUpload.Q.Next
       end; //while not dmLogUpload.Q.Eof do
 
-      if not FatalError then
+      if not (ErrorCode = 1) then
         ToMainThread('Done ...','')
     finally
       dmLogUpload.Q.Close;

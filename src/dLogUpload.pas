@@ -48,7 +48,7 @@ type
     function  CheckUserUploadSettings(where : TWhereToUpload) : String;
     function  GetLogUploadColor(where : TWhereToUpload) : Integer;
     function  GetUploadUrl(where : TWhereToUpload; cmd : String) : String;
-    function  GetResultMessage(where : TWhereToUpload; Response : String; ResultCode : Integer; var FatalError : Boolean) : String;
+    function  GetResultMessage(where : TWhereToUpload; Response : String; ResultCode : Integer; var ErrorCode : Integer) : String;
     function  LogUploadEnabled : Boolean;
 
     procedure MarkAsUploadedToAllOnlineLogs;
@@ -606,10 +606,10 @@ begin
   end //case
 end;
 
-function TdmLogUpload.GetResultMessage(where : TWhereToUpload; Response : String; ResultCode : Integer; var FatalError : Boolean) : String;
+function TdmLogUpload.GetResultMessage(where : TWhereToUpload; Response : String; ResultCode : Integer; var ErrorCode : Integer) : String;
 begin
   Result     := '';
-  FatalError := False;
+  ErrorCode  := 0;
   Response   := Trim(Response);
 
   case where of
@@ -618,26 +618,26 @@ begin
                     200 : Result := 'OK';
                     500 : begin
                             Result     := Response;
-                            FatalError := True
+                            ErrorCode  := 1;
                           end;//something wrong with HamQTH server
                     400 : begin
                             Result := Response;
                             if (Response = 'QSO already exists in the log')  then
                               Result := 'Already exists'
                             else if (Response = 'QSO not found in the log!') then
-                              FatalError := False
+                              ErrorCode := 0
                             else begin
-                              FatalError := True; //QSO rejected
+                              ErrorCode  := 1; //QSO rejected
                               Result     := Response
                             end
                           end;
                     403 : begin
                             Result     := 'Access denied';
-                            FatalError := True
+                            Errorcode := 1
                           end
                     else begin
                       Result     := Response;
-                      FatalError := True
+                      ErrorCode  := 1
                     end
                   end
                 end;
@@ -647,29 +647,36 @@ begin
                     400 : begin
                             Result     := Response;
                             if (Pos('skipping qso',LowerCase(Response))=0) then //consider skiping QSO as non fatal error, the app can live with it :)
-                              FatalError := True
+                              ErrorCode := 1
                           end;
                     403 : begin
-                            Result := 'Access denied';
-                            FatalError := True
+                            Result := 'Access denied: ' + Response;
+                            ErrorCode := 1
                           end;
                     500 : begin
                             Result := 'Internal error';
-                            FatalError := True
+                            ErrorCode := 1
                           end;
                     404 : begin
                             Result     := Response;
-                            FatalError := True
+                            if (Response = 'QSO Details Not Matched') then
+                            begin
+                                ErrorCode := 2;
+                            end
+                            else
+                            begin
+                                ErrorCode := 1;
+                            end;
                           end
                   end //case
                 end;
     upHrdLog  : begin
                   case ParseHrdLogOutput(Response,Result) of
                     200 : Result := 'OK';
-                    400 : FatalError := True;
-                    403 : FatalError := True;
-                    500 : FatalError := True;
-                    404 : FatalError := True
+                    400 : ErrorCode := 1;
+                    403 : ErrorCode := 1;
+                    500 : ErrorCode := 1;
+                    404 : ErrorCode := 1
                   end //case
                 end
   end //case
