@@ -627,7 +627,7 @@ begin
                             else if (Response = 'QSO not found in the log!') then
                               ErrorCode := 0
                             else begin
-                              ErrorCode  := 1; //QSO rejected
+                              ErrorCode  := 2; //QSO rejected; continue with next one
                               Result     := Response
                             end
                           end;
@@ -647,15 +647,15 @@ begin
                     400 : begin
                             Result     := Response;
                             if (Pos('skipping qso',LowerCase(Response))=0) then //consider skiping QSO as non fatal error, the app can live with it :)
-                              ErrorCode := 1
+                              ErrorCode := 2
                           end;
                     403 : begin
-                            Result := 'Access denied: ' + Response;
+                            Result := 'Access denied';
                             ErrorCode := 1
                           end;
                     500 : begin
                             Result := 'Internal error';
-                            ErrorCode := 1
+                            ErrorCode := 2
                           end;
                     404 : begin
                             Result     := Response;
@@ -673,10 +673,10 @@ begin
     upHrdLog  : begin
                   case ParseHrdLogOutput(Response,Result) of
                     200 : Result := 'OK';
-                    400 : ErrorCode := 1;
+                    400 : ErrorCode := 2;
                     403 : ErrorCode := 1;
                     500 : ErrorCode := 1;
-                    404 : ErrorCode := 1
+                    404 : ErrorCode := 2
                   end //case
                 end
   end //case
