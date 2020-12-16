@@ -30,6 +30,7 @@ type
     acDeleteQSO: TAction;
     acCreateFilter: TAction;
     acCreateContestFilter: TAction;
+    acCreateSatelliteFilter: TAction;
     acCancelFilter: TAction;
 
     acClose:    TAction;
@@ -143,6 +144,7 @@ type
     MenuItem104: TMenuItem;
     MenuItem105: TMenuItem;
     MenuItem106: TMenuItem;
+    MenuItem107: TMenuItem;
     MenuItem89: TMenuItem;
     mnueQSLView: TMenuItem;
     MenuItem11: TMenuItem;
@@ -409,6 +411,7 @@ type
     procedure acCloseExecute(Sender: TObject);
     procedure acCreateFilterExecute(Sender: TObject);
     procedure acCreateContestFilterExecute(Sender: TObject);
+    procedure acCreateSatelliteFilterExecute(Sender: TObject);
     procedure acDXClusterExecute(Sender: TObject);
     procedure acExADIFExecute(Sender: TObject);
     procedure acExHTMLExecute(Sender: TObject);
@@ -472,13 +475,14 @@ implementation
 
 { TfrmMain }
 uses fNewQSO, fPreferences, dUtils, dData, dDXCC, dDXCluster, fMarkQSL, fDXCCStat,
-  fSort, fFilter, fContestFilter, fImportProgress, fGrayline, fCallbook, fTRXControl,
-  fAdifImport, fSplash, fSearch, fExportProgress, fDXCluster, fQSLMgr,
-  fQSODetails, fWAZITUStat, fDOKStat, fIOTAStat, fDatabaseUpdate, fExLabelPrint,
-  fImportLoTWWeb, fLoTWExport, fGroupEdit, fCustomStat, fSQLConsole, fCallAttachment,
-  fEditDetails, fQSLViewer, uMyIni, fRebuildMembStat, fAbout, fBigSquareStat,
-  feQSLUpload, feQSLDownload, fSOTAExport, fEDIExport, fCabrilloExport, fRotControl,
-  fLogUploadStatus, fExportPref,uVersion;
+  fSort, fFilter, fContestFilter, fSatelliteFilter, fImportProgress, fGrayline,
+  fCallbook, fTRXControl, fAdifImport, fSplash, fSearch, fExportProgress,
+  fDXCluster, fQSLMgr, fQSODetails, fWAZITUStat, fDOKStat, fIOTAStat,
+  fDatabaseUpdate, fExLabelPrint, fImportLoTWWeb, fLoTWExport, fGroupEdit,
+  fCustomStat, fSQLConsole, fCallAttachment,  fEditDetails, fQSLViewer, uMyIni,
+  fRebuildMembStat, fAbout, fBigSquareStat, feQSLUpload, feQSLDownload,
+  fSOTAExport, fEDIExport, fCabrilloExport, fRotControl, fLogUploadStatus,
+  fExportPref, uVersion;
 
 procedure TfrmMain.ReloadGrid;
 begin
@@ -1916,6 +1920,27 @@ begin
   lblDistance.Visible:=(lblDist.Caption <>'');
 
   with TfrmContestFilter.Create(self) do
+  try
+    ShowModal;
+    if (ModalResult = mrOk) then
+      if (tmp <> '') then
+      begin
+        dmData.IsFilter := True;
+        sbMain.Panels[2].Text := 'Filter is ACTIVE!';
+        RefreshQSODXCCCount;
+        ShowFields
+      end
+  finally
+    Free
+  end
+end;
+
+procedure TfrmMain.acCreateSatelliteFilterExecute(Sender: TObject);
+begin
+  lblDist.Caption :='';
+  lblDistance.Visible:=(lblDist.Caption <>'');
+
+  with TfrmSatelliteFilter.Create(self) do
   try
     ShowModal;
     if (ModalResult = mrOk) then

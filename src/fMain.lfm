@@ -160,7 +160,7 @@ object frmMain: TfrmMain
   OnKeyDown = FormKeyDown
   OnKeyUp = FormKeyUp
   OnShow = FormShow
-  LCLVersion = '1.8.2.0'
+  LCLVersion = '2.0.6.0'
   object sbMain: TStatusBar
     AnchorSideRight.Side = asrBottom
     AnchorSideBottom.Side = asrBottom
@@ -1156,6 +1156,10 @@ object frmMain: TfrmMain
         Action = acCreateContestFilter
         OnClick = acCreateContestFilterExecute
       end
+      object MenuItem107: TMenuItem
+        Action = acCreateSatelliteFilter
+        OnClick = acCreateSatelliteFilterExecute
+      end
       object MenuItem79: TMenuItem
         Caption = '-'
       end
@@ -1767,6 +1771,11 @@ object frmMain: TfrmMain
       Caption = 'Contest filter'
       Hint = 'Create contest filter'
       OnExecute = acCreateContestFilterExecute
+    end
+    object acCreateSatelliteFilter: TAction
+      Caption = 'Satellite filter'
+      Hint = 'Create satellite filter'
+      OnExecute = acCreateSatelliteFilterExecute
     end
     object acCancelFilter: TAction
       Caption = 'Cancel filter'
