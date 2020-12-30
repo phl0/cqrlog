@@ -448,6 +448,9 @@ begin
       tmp := dmUtils.StringToADIF('<CALL',dmUtils.RemoveSpaces(dmData.Q1.FieldByName('callsign').AsString));
       Writeln(f,tmp);
 
+      if (dmData.Q1.FieldByName('my_loc').AsString <> '') then
+        Writeln(f, dmUtils.StringToADIF('<MY_GRIDSQUARE' ,dmData.Q1.FieldByName('my_loc').AsString));
+
       if (dmData.Q1.FieldByName('mode').AsString = 'JS8') then begin
         tmp := '<MODE:4>MFSK';
         Writeln(f,tmp);
