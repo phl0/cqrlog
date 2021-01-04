@@ -4783,8 +4783,15 @@ end;
 
 procedure TfrmNewQSO.cmbSatelliteChange(Sender : TObject);
 begin
-  if ((cmbSatellite.Text <> '') and (cmbPropagation.Text = '')) then
-    cmbPropagation.Text := 'SAT|Satellite';
+  if (cmbSatellite.Text <> '') then
+  begin
+    edtRXFreq.Text := dmSatellite.GetDownlinkFrequency(cmbSatellite.Text);
+    cmbFreq.Text := dmSatellite.GetUplinkFrequency(cmbSatellite.Text);
+    cmbMode.Text := dmSatellite.GetMode(cmbSatellite.Text);
+
+    if (cmbPropagation.Text = '') then
+      cmbPropagation.Text := 'SAT|Satellite';
+  end;
 
   old_sat := dmSatellite.GetSatShortName(cmbSatellite.Text);  //old_sat is now selected value
   cmbPropagationChange(nil);

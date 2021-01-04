@@ -32,6 +32,9 @@ type
     function  GetPropShortName(Propagation : String) : String;
     function  GetPropLongName(Propagation : String) : String;
     function  GetSatMode(freq, rxfreq : String) : String;
+    function  GetUplinkFrequency(Satellite : String) : String;
+    function  GetDownlinkFrequency(Satellite : String) : String;
+    function  GetMode(Satellite : String) : String;
 
     procedure LoadSatellitesFromFile;
     procedure LoadPropModesFromFile;
@@ -76,12 +79,19 @@ begin
     ListOfPropModes.LoadFromFile(dmData.HomeDir + C_PROP_MODE_LIST)
 end;
 procedure TdmSatellite.SetListOfSatellites(cmbSatellite : TComboBox);
-Begin
+var
+   i : Integer;
+   tmp : TExplodeArray;
+begin
   cmbSatellite.Clear;
   cmbSatellite.Items.Add('');
   cmbSatellite.ItemIndex := 0;
 
-  cmbSatellite.Items.AddStrings(ListOfSatellites);
+  for i:=0 to ListOfSatellites.Count -1 do
+  begin
+    tmp := dmUtils.Explode('|',ListOfSatellites[i]);
+    cmbSatellite.Items.Add(tmp[0]+'|'+tmp[1]);
+  end;
 end;
 
 procedure TdmSatellite.GetListOfSatellites(cmbSatellite : TComboBox; Selected : String = '');
@@ -122,6 +132,60 @@ begin
   end
 end;
 
+function TdmSatellite.GetUplinkFrequency(Satellite : String) : String;
+var
+   i : Integer;
+   sat : String = '';
+   tmp : TExplodeArray;
+begin
+  sat := GetSatShortName(Satellite);
+  for i:=0 to ListOfSatellites.Count -1 do
+  begin
+    tmp := dmUtils.Explode('|',ListOfSatellites[i]);
+    if (sat = tmp[0]) then
+    begin
+       Result := tmp[2];
+       break
+    end;
+  end;
+end;
+
+function TdmSatellite.GetDownlinkFrequency(Satellite : String) : String;
+var
+   i : Integer;
+   sat : String = '';
+   tmp : TExplodeArray;
+begin
+  sat := GetSatShortName(Satellite);
+  for i:=0 to ListOfSatellites.Count -1 do
+  begin
+    tmp := dmUtils.Explode('|',ListOfSatellites[i]);
+    if (sat = tmp[0]) then
+    begin
+       Result := tmp[3];
+       break
+    end;
+  end;
+end;
+
+function TdmSatellite.GetMode(Satellite : String) : String;
+var
+   i : Integer;
+   sat : String = '';
+   tmp : TExplodeArray;
+begin
+  sat := GetSatShortName(Satellite);
+  for i:=0 to ListOfSatellites.Count -1 do
+  begin
+    tmp := dmUtils.Explode('|',ListOfSatellites[i]);
+    if (sat = tmp[0]) then
+    begin
+       Result := tmp[4];
+       break
+    end;
+  end;
+end;
+
 function TdmSatellite.GetSatShortName(Satellite : String) : String;
 begin
   Result := GetShortName(Satellite)
@@ -149,8 +213,11 @@ begin
 end;
 
 function TdmSatellite.GetShortName(StringItem : String) : String;
+var
+   tmp : TExplodeArray;
 begin
-  Result := Copy(StringItem, 1, Pos('|', StringItem) - 1)
+  tmp := dmUtils.Explode('|',StringItem);
+  Result := tmp[0];
 end;
 
 function  TdmSatellite.GetSatMode(freq, rxfreq : String) : String;
