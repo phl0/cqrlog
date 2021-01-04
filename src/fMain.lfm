@@ -1651,6 +1651,17 @@ object frmMain: TfrmMain
           Action = acMarkAllHrdLog
         end
       end
+      object MenuItem110: TMenuItem
+        Caption = 'qrz.com'
+        object MenuItem111: TMenuItem
+          Caption = 'Upload all Changes'
+          Action = acUploadToQrzLog
+        end
+        object MenuItem112: TMenuItem
+          Caption = 'Mark all QSO as uploaded'
+          Action = acMarkAllQrzLog
+        end
+      end
       object MenuItem94: TMenuItem
         Caption = '-'
       end
@@ -2061,6 +2072,16 @@ object frmMain: TfrmMain
       Category = 'OnlineLog'
       Caption = 'Mark all QSO as uploaded'
       OnExecute = acMarkAllHrdLogExecute
+    end
+    object acUploadToQrzLog: TAction
+      Category = 'OnlineLog'
+      Caption = 'Upload all changes'
+      OnExecute = acUploadToQrzLogExecute
+    end
+    object acMarkAllQrzLog: TAction
+      Category = 'OnlineLog'
+      Caption = 'Mark all QSO as uploaded'
+      OnExecute = acMarkAllQrzLogExecute
     end
     object acUploadToAll: TAction
       Category = 'OnlineLog'

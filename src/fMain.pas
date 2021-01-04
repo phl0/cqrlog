@@ -81,12 +81,14 @@ type
     acRemoveDupes: TAction;
     acMarkAllClubLog: TAction;
     acMarkAllHrdLog: TAction;
+    acMarkAllQrzLog: TAction;
     acMarkAll: TAction;
     acMarkAlleQSL: TAction;
     acAutoSizeColumns: TAction;
     acUploadAllToLoTW: TAction;
     acUploadToAll: TAction;
     acUploadToHrdLog: TAction;
+    acUploadToQrzLog: TAction;
     acUploadToClubLog: TAction;
     acUploadToHamQTH: TAction;
     acMarkAllHamQTH: TAction;
@@ -143,6 +145,9 @@ type
     MenuItem104: TMenuItem;
     MenuItem105: TMenuItem;
     MenuItem106: TMenuItem;
+    MenuItem110: TMenuItem;
+    MenuItem111: TMenuItem;
+    MenuItem112: TMenuItem;
     MenuItem89: TMenuItem;
     mnueQSLView: TMenuItem;
     MenuItem11: TMenuItem;
@@ -340,6 +345,7 @@ type
     procedure acMarkAllExecute(Sender: TObject);
     procedure acMarkAllHamQTHExecute(Sender: TObject);
     procedure acMarkAllHrdLogExecute(Sender: TObject);
+    procedure acMarkAllQrzLogExecute(Sender: TObject);
     procedure acPnlDetailsExecute(Sender: TObject);
     procedure acQRZExecute(Sender: TObject);
     procedure acQSLImageExecute(Sender: TObject);
@@ -355,6 +361,7 @@ type
     procedure acUploadToClubLogExecute(Sender: TObject);
     procedure acUploadToHamQTHExecute(Sender: TObject);
     procedure acUploadToHrdLogExecute(Sender: TObject);
+    procedure acUploadToQrzLogExecute(Sender: TObject);
     procedure dbgrdMainColumnMoved(Sender: TObject; FromIndex, ToIndex: Integer
       );
     procedure dbgrdMainColumnSized(Sender: TObject);
@@ -673,6 +680,10 @@ begin
                   end;
       upHrdLog  : begin
                     frmLogUploadStatus.UploadDataToHrdLog;
+                    tmrUploadAll.Enabled := False
+                  end;
+      upQrzLog  : begin
+                    frmLogUploadStatus.UploadDataToQrzLog;
                     tmrUploadAll.Enabled := False
                   end;
     end //case
@@ -1436,7 +1447,7 @@ begin
   if Application.MessageBox('PLEASE MAKE A BACKUP FIRST! THIS FUNCTION MAY DELETE QSO FROM YOUR LOG!'+LineEnding+LineEnding+
        'Do you really want to remove dupes from database?','Question ...',mb_YesNo+mb_IconQuestion+mb_DefButton2) = idYes then
   begin
-    if cqrini.ReadBool('OnlineLog','HaUP',False)  or cqrini.ReadBool('OnlineLog','ClUP',False) or cqrini.ReadBool('OnlineLog','HrUP',False) then
+    if cqrini.ReadBool('OnlineLog','HaUP',False)  or cqrini.ReadBool('OnlineLog','ClUP',False) or cqrini.ReadBool('OnlineLog','HrUP',False) or cqrini.ReadBool('OnlineLog','QrzUP',False) then
     begin
       if Application.MessageBox('It seems you are using online log upload. First, please go to Online log menu and click to  "Mark all QSO as uploaded to all logs".'+
                               LineEnding + LineEnding + 'Do you want to continue?','Question...', mb_YesNo+mb_IconQuestion) in [idNo, idCancel] then
@@ -1573,6 +1584,11 @@ begin
   dmLogUpload.MarkAsUploaded(C_HRDLOG)
 end;
 
+procedure TfrmMain.acMarkAllQrzLogExecute(Sender: TObject);
+begin
+  dmLogUpload.MarkAsUploaded(C_QRZLOG)
+end;
+
 procedure TfrmMain.acSQLExecute(Sender: TObject);
 begin
   frmSQLConsole := TfrmSQLConsole.Create(self);
@@ -1630,6 +1646,11 @@ end;
 procedure TfrmMain.acUploadToHrdLogExecute(Sender: TObject);
 begin
   frmLogUploadStatus.UploadDataToHrdLog
+end;
+
+procedure TfrmMain.acUploadToQrzLogExecute(Sender: TObject);
+begin
+  frmLogUploadStatus.UploadDataToQrzLog
 end;
 
 procedure TfrmMain.dbgrdMainColumnMoved(Sender: TObject; FromIndex,

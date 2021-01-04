@@ -6,7 +6,8 @@ interface
 
 uses
   Classes, SysUtils, FileUtil, LResources, Forms, Controls, Graphics, Dialogs,
-  Menus, ActnList, ExtCtrls, uColorMemo, lcltype,  dLogUpload, lclintf, lmessages;
+  Menus, ActnList, ExtCtrls, uColorMemo, lcltype,  dLogUpload, lclintf, lmessages,
+  Regexpr;
 
 type
 
@@ -44,6 +45,7 @@ type
     procedure UploadDataToHamQTH(ToAll : Boolean = False);
     procedure UploadDataToClubLog(ToAll : Boolean = False);
     procedure UploadDataToHrdLog(ToAll : Boolean = False);
+    procedure UploadDataToQrzLog(ToAll : Boolean = False);
     procedure UploadDataToAll;
     procedure SyncUploadInformation;
   end; 
@@ -110,6 +112,17 @@ begin
                     end;
                     Result := False
                   end
+                end;
+    upQrzLog : begin
+                  if not cqrini.ReadBool('OnlineLog','QrzUP',False) then
+                  begin
+                    if (not ToAll) then
+                    begin
+                      frmLogUploadStatus.SyncMsg := Format(C_IS_NOT_ENABLED,['qrz.com']);
+                      Synchronize(@frmLogUploadStatus.SyncUploadInformation)
+                    end;
+                    Result := False
+                  end
                 end
   end //case
 end;
@@ -126,8 +139,12 @@ var
   ResultCode : Integer;
   Command    : String;
   UpSuccess  : Boolean = False;
-  FatalError : Boolean = False;
+  ErrorCode  : Integer = 0;
   AlreadyDel : Boolean = False;
+  tre        : String;
+  qrzLogId   : String;
+  cqrlogId   : String;
+  ErrPos     : integer = 0;
 begin
   data := TStringList.Create;
   try
@@ -181,7 +198,7 @@ begin
         begin
           ToMainThread('Uploading '+dmLogUpload.Q.FieldByName('callsign').AsString,'');
           dmLogUpload.PrepareInsertHeader(WhereToUpload,dmLogUpload.Q.Fields[0].AsInteger,dmLogUpload.Q.FieldByName('id_cqrlog_main').AsInteger,data);
-          UpSuccess := dmLogUpload.UploadLogData(dmLogUpload.GetUploadUrl(WhereToUpload,Command),data,Response,ResultCode)
+          UpSuccess := dmLogUpload.UploadLogData(WhereToUpload, dmLogUpload.GetUploadUrl(WhereToUpload,Command),data,Response,ResultCode)
         end
 
 
@@ -199,12 +216,12 @@ begin
               Writeln(data.Text)
             end;
 
-            UpSuccess := dmLogUpload.UploadLogData(dmLogUpload.GetUploadUrl(WhereToUpload,'DELETE'),data,Response,ResultCode);
+            UpSuccess := dmLogUpload.UploadLogData(WhereToUpload,dmLogUpload.GetUploadUrl(WhereToUpload,'DELETE'),data,Response,ResultCode);
 
             if dmData.DebugLevel >= 1 then
             begin
-              Writeln('Response  :',Response);
-              Writeln('ResultCode:',ResultCode)
+              Writeln('Response  : ',Response);
+              Writeln('ResultCode: ',ResultCode)
             end
           end
           else begin
@@ -216,11 +233,15 @@ begin
 
           if UpSuccess then
           begin
-            Response := dmLogUpload.GetResultMessage(WhereToUpload,Response,ResultCode,FatalError);
-            if FatalError then
+            Response := dmLogUpload.GetResultMessage(WhereToUpload,Response,ResultCode,ErrorCode);
+            if (ErrorCode = 1) then
             begin
               ToMainThread('Could not delete original QSO data!','');
               Break
+            end
+            else if (ErrorCode = 2) then
+            begin
+              ToMainThread('Could not delete original QSO data. Reason: ' + Response,'');
             end
             else
               ToMainThread('','OK');
@@ -229,7 +250,7 @@ begin
             dmLogUpload.PrepareUserInfoHeader(WhereToUpload,data);
             ToMainThread('Uploading updated '+dmLogUpload.Q.FieldByName('callsign').AsString,'');
             dmLogUpload.PrepareInsertHeader(WhereToUpload,dmLogUpload.Q.Fields[0].AsInteger,dmLogUpload.Q.FieldByName('id_cqrlog_main').AsInteger,data);
-            UpSuccess := dmLogUpload.UploadLogData(dmLogUpload.GetUploadUrl(WhereToUpload,Command),data,Response,ResultCode)
+            UpSuccess := dmLogUpload.UploadLogData(WhereToUpload,dmLogUpload.GetUploadUrl(WhereToUpload,Command),data,Response,ResultCode);
           end
           else
             ToMainThread('Update failed! Check Internet connection','')
@@ -237,8 +258,13 @@ begin
         else if (Command = 'DELETE') then
         begin
           ToMainThread('Deleting '+dmLogUpload.Q.FieldByName('old_callsign').AsString,'');
+
           dmLogUpload.PrepareDeleteHeader(WhereToUpload,dmLogUpload.Q.Fields[0].AsInteger,data);
-          UpSuccess := dmLogUpload.UploadLogData(dmLogUpload.GetUploadUrl(WhereToUpload,Command),data,Response,ResultCode)
+          UpSuccess := dmLogUpload.UploadLogData(WhereToUpload,dmLogUpload.GetUploadUrl(WhereToUpload,Command),data,Response,ResultCode);
+          if (ErrorCode = 1) then
+          begin
+            ToMainThread(Response, '');
+          end;
         end;
 
         if dmData.DebugLevel >= 1 then
@@ -246,20 +272,51 @@ begin
           Writeln('data.Text:');
           Writeln(data.Text);
           Writeln('-----------');
-          Writeln('Response  :',Response);
-          Writeln('ResultCode:',ResultCode);
+          Writeln('Response  : ',Response);
+          Writeln('ResultCode: ',ResultCode);
           Writeln('-----------')
         end;
 
         if UpSuccess then
         begin
-          Response := dmLogUpload.GetResultMessage(WhereToUpload,Response,ResultCode,FatalError);
+          Response := dmLogUpload.GetResultMessage(WhereToUpload,Response,ResultCode,ErrorCode);
+          if (WhereToUpload = upQrzLog) and cqrini.ReadBool('OnlineLog','QrzUP',False) and ((Command = 'INSERT') or (Command = 'UPDATE')) then
+          begin
+            if (Response='OK') then
+            begin
+              tre := '.*OK \((\d+)\).*';
+              qrzLogId := ReplaceRegExpr(tre, Response, '$1', True);
+              cqrlogId := dmLogUpload.Q.FieldByName('id_cqrlog_main').AsString;
+              // As QSO data is inserted into the db before qrz.com is log uploaded
+              // we need to update cqrlog_main and log_changes tables after upload
+              if (qrzLogId <> '') and (cqrlogId <> '') then
+              begin
+                if dmData.trQ.Active then dmData.trQ.RollBack;
+                dmData.trQ.StartTransaction;
+                dmData.Q.SQL.Text := 'UPDATE cqrlog_main SET `qrz_logid` = '+qrzLogId+' WHERE id_cqrlog_main='+cqrlogId;
+                if dmData.DebugLevel>=1 then Writeln(dmData.Q.SQL.Text);
+                dmData.Q.ExecSQL;
+                dmData.trQ.Commit;
+               dmData.Q.SQL.Text := 'UPDATE log_changes SET `qrz_logid` = '+qrzLogId+' WHERE id_cqrlog_main='+cqrlogId;
+                if dmData.DebugLevel>=1 then Writeln(dmData.Q.SQL.Text);
+                dmData.Q.ExecSQL;
+                dmData.trQ.Commit;
+                  // Due to triggers being triggered on update of cqrlog_main we need to get rid of this
+                  // useless update that only updated the qrz.com logid
+                dmData.Q.SQL.Text := 'DELETE FROM log_changes WHERE `cmd` = "UPDATE" ORDER BY `id` DESC LIMIT 1';
+                dmData.Q.ExecSQL;
+                dmData.trQ.Commit;
+                dmData.Q.Close;
+                dmData.trQ.Rollback;
+              end
+            end;
+          end;
           if (Response='OK') then
             ToMainThread('','OK')
           else
             ToMainThread(Response,'');
 
-          if FatalError then
+          if (ErrorCode = 1) then
           begin
             if AlreadyDel then  //if cmd was update, delete was successful but new insert was not
             begin
@@ -276,14 +333,14 @@ begin
             dmLogUpload.MarkAsUpDeleted(dmLogUpload.Q.Fields[0].AsInteger)
           end;
           ToMainThread('Upload failed! Check Internet connection','');
-          FatalError := True;
+          ErrorCode := 1;
           Break
         end;
         Sleep(2000); //we don't want to make small DDOS attack to server
         dmLogUpload.Q.Next
       end; //while not dmLogUpload.Q.Eof do
 
-      if not FatalError then
+      if not (ErrorCode = 1) then
         ToMainThread('Done ...','')
     finally
       dmLogUpload.Q.Close;
@@ -306,7 +363,8 @@ begin
   case WhereToUpload of
     upHamQTH  : Result := C_HAMQTH;
     upClubLog : Result := C_CLUBLOG;
-    upHrdlog  : Result := C_HRDLOG
+    upHrdLog  : Result := C_HRDLOG;
+    upQrzLog  : Result := C_QRZLOG;
   end //case
 end;
 
@@ -443,11 +501,17 @@ begin
   UploadDataToOnlineLogs(upHrdLog, ToAll)
 end;
 
+procedure TfrmLogUploadStatus.UploadDataToQrzLog(ToAll : Boolean = False);
+begin
+  UploadDataToOnlineLogs(upQrzLog, ToAll)
+end;
+
 procedure TfrmLogUploadStatus.UploadDataToAll;
 begin
   UploadDataToOnlineLogs(upHamQTH, True);
   UploadDataToOnlineLogs(upClubLog, True);
-  UploadDataToOnlineLogs(upHrdLog, True)
+  UploadDataToOnlineLogs(upHrdLog, True);
+  UploadDataToOnlineLogs(upQrzLog, True)
 end;
 
 end.

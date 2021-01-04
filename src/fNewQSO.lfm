@@ -5166,6 +5166,12 @@ object frmNewQSO: TfrmNewQSO
           Action = acUploadToHrdLog
         end
       end
+      object MenuItem100: TMenuItem
+        Caption = 'qrz.com'
+        object MenuItem101: TMenuItem
+          Action = acUploadToQrzLog
+        end
+      end
       object MenuItem88: TMenuItem
         Caption = '-'
       end
@@ -5713,6 +5719,11 @@ object frmNewQSO: TfrmNewQSO
       Category = 'OnlineLog'
       Caption = 'Upload all changes'
       OnExecute = acUploadToHrdLogExecute
+    end
+    object acUploadToQrzLog: TAction
+      Category = 'OnlineLog'
+      Caption = 'Upload all changes'
+      OnExecute = acUploadToQrzLogExecute
     end
     object acUploadToAll: TAction
       Category = 'OnlineLog'

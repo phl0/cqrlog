@@ -121,6 +121,8 @@ type
     cb60m: TCheckBox;
     cb30cm: TCheckBox;
     cgLimit: TCheckGroup;
+    chkQrzUpEnabled: TCheckBox;
+    chkQrzUpOnline: TCheckBox;
     cbNoKeyerReset: TCheckBox;
     chkOperator: TCheckBox;
     chkDarcDok: TCheckBox;
@@ -433,6 +435,7 @@ type
     cmbDataBitsR2: TComboBox;
     cmbDataBitsRot1: TComboBox;
     cmbDataBitsRot2: TComboBox;
+    cmbQrzColor: TColorBox;
     cmbIfaceType2: TComboBox;
     cmbModelRot1: TComboBox;
     cmbModelRot2: TComboBox;
@@ -520,6 +523,8 @@ type
     edteQSLDnlAddr: TEdit;
     edteQSLStartAddr: TEdit;
     edteQSLViewAddr: TEdit;
+    edtQrzCode: TEdit;
+    edtQrzUserName: TEdit;
     edtK3NGPort2: TEdit;
     edtR1Host: TEdit;
     edtRadio1Name: TEdit;
@@ -702,6 +707,7 @@ type
     GroupBox45: TGroupBox;
     GroupBox46: TGroupBox;
     gbDXCAlert: TGroupBox;
+    GroupBox47: TGroupBox;
     GroupBox48: TGroupBox;
     gbK3NGkey: TGroupBox;
     gbDXCColor: TGroupBox;
@@ -720,6 +726,10 @@ type
     Label1: TLabel;
     Label10: TLabel;
     Label108: TLabel;
+    Label203: TLabel;
+    Label208: TLabel;
+    Label209: TLabel;
+    Label210: TLabel;
     lblHost2: TLabel;
     lblUsr1R1: TLabel;
     lblUsr1R2: TLabel;
@@ -1061,6 +1071,7 @@ type
     procedure chkClUpEnabledChange(Sender: TObject);
     procedure chkHaUpEnabledChange(Sender: TObject);
     procedure chkHrUpEnabledChange(Sender: TObject);
+    procedure chkQrzUpEnabledChange(Sender: TObject);
     procedure chkPotSpeedChange(Sender: TObject);
     procedure chkProfileLocatorClick(Sender: TObject);
     procedure chkProfileQTHClick(Sender: TObject);
@@ -1659,6 +1670,14 @@ begin
   cqrini.WriteString('OnlineLog','HrUserName',edtHrUserName.Text);
   cqrini.WriteString('OnlineLog','HrCode',edtHrCode.Text);
   cqrini.WriteInteger('OnlineLog','HrColor',cmbHrColor.Selected);
+
+  cqrini.WriteBool('OnlineLog','QrzUP',chkQrzUpEnabled.Checked);
+  cqrini.WriteBool('OnlineLog','QrzUpOnline',chkQrzUpOnline.Checked);
+  cqrini.WriteString('OnlineLog','QrzUserName',edtQrzUserName.Text);
+  cqrini.WriteString('OnlineLog','QrzCode',edtQrzCode.Text);
+  cqrini.WriteInteger('OnlineLog','QrzColor',cmbQrzColor.Selected);
+
+
   cqrini.WriteBool('OnlineLog','CloseAfterUpload',chkCloseAfterUpload.Checked);
   cqrini.WriteBool('OnlineLog','IgnoreLoTWeQSL',chkIgnoreLoTW.Checked);
 
@@ -1723,7 +1742,7 @@ begin
     frmNewQSO.cmbMode.Text := cmbMode.Text;
   end;
 
-  if (not (chkHaUpEnabled.Checked or chkClUpEnabled.Checked or chkHrUpEnabled.Checked)) then
+  if (not (chkHaUpEnabled.Checked or chkClUpEnabled.Checked or chkHrUpEnabled.Checked or chkQrzUpEnabled.Checked)) then
   begin
     if wasOnlineLogSupportEnabled then
       dmLogUpload.DisableOnlineLogSupport
@@ -2339,6 +2358,14 @@ begin
   edtHrCode.Enabled     := chkHrUpEnabled.Checked;
   chkHrUpOnline.Enabled := chkHrUpEnabled.Checked;
   cmbHrColor.Enabled    := chkHrUpEnabled.Checked
+end;
+
+procedure TfrmPreferences.chkQrzUpEnabledChange(Sender: TObject);
+begin
+  edtQrzUserName.Enabled := chkQrzUpEnabled.Checked;
+  edtQrzCode.Enabled     := chkQrzUpEnabled.Checked;
+  chkQrzUpOnline.Enabled := chkQrzUpEnabled.Checked;
+  cmbQrzColor.Enabled    := chkQrzUpEnabled.Checked
 end;
 
 procedure TfrmPreferences.chkPotSpeedChange(Sender: TObject);
@@ -3188,9 +3215,17 @@ begin
   edtHrUserName.Text     := cqrini.ReadString('OnlineLog','HrUserName','');
   edtHrCode.Text         := cqrini.ReadString('OnlineLog','HrCode','');
   cmbHrColor.Selected    := cqrini.ReadInteger('OnlineLog','HrColor',clPurple);
+  chkHrUpEnabledChange(nil);
+
+  chkQrzUpEnabled.Checked := cqrini.ReadBool('OnlineLog','QrzUP',False);
+  chkQrzUpOnline.Checked  := cqrini.ReadBool('OnlineLog','QrzUpOnline',False);
+  edtQrzUserName.Text     := cqrini.ReadString('OnlineLog','QrzUserName','');
+  edtQrzCode.Text         := cqrini.ReadString('OnlineLog','QrzCode','');
+  cmbQrzColor.Selected    := cqrini.ReadInteger('OnlineLog','QrzColor',clTeal);
+  chkQrzUpEnabledChange(nil);
+
   chkCloseAfterUpload.Checked := cqrini.ReadBool('OnlineLog','CloseAfterUpload',False);
   chkIgnoreLoTW.Checked  := cqrini.ReadBool('OnlineLog','IgnoreLoTWeQSL',False);
-  chkHrUpEnabledChange(nil);
 
   edtCondxImageUrl.Text      := cqrini.ReadString('prop','Url','http://www.hamqsl.com/solarbrief.php');
   rbCondxAsImage.Checked     := cqrini.ReadBool('prop','AsImage',True);
@@ -3199,7 +3234,7 @@ begin
   chkCondxCalcHF.Checked     := cqrini.ReadBool('prop','CalcHF',True);
   chkCondxCalcVHF.Checked    := cqrini.ReadBool('prop','CalcVHF',True);
 
-  wasOnlineLogSupportEnabled := chkHaUpEnabled.Checked or chkClUpEnabled.Checked or chkHrUpEnabled.Checked;
+  wasOnlineLogSupportEnabled := chkHaUpEnabled.Checked or chkClUpEnabled.Checked or chkHrUpEnabled.Checked or chkQrzUpEnabled.Checked;
 
   fraExportPref1.LoadExportPref;
 

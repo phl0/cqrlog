@@ -9197,6 +9197,93 @@ object frmPreferences: TfrmPreferences
         Caption = 'Ignore changes caused by LoTW/eQSL upload or download'
         TabOrder = 4
       end
+      object GroupBox47: TGroupBox
+        Left = 13
+        Height = 168
+        Top = 544
+        Width = 569
+        Caption = ' QRZ.com'
+        ClientHeight = 142
+        ClientWidth = 563
+        TabOrder = 5
+        object chkQrzUpEnabled: TCheckBox
+          Left = 7
+          Height = 23
+          Top = 4
+          Width = 198
+          Caption = 'Enable upload to qrz.com'
+          OnChange = chkQrzUpEnabledChange
+          TabOrder = 0
+        end
+        object Label203: TLabel
+          Left = 9
+          Height = 17
+          Top = 36
+          Width = 57
+          Caption = 'Callsign:'
+          ParentColor = False
+        end
+        object edtQrzUserName: TEdit
+          Left = 9
+          Height = 25
+          Top = 57
+          Width = 102
+          TabOrder = 1
+          Text = 'edtQrzUserName'
+        end
+        object chkQrzUpOnline: TCheckBox
+          Left = 6
+          Height = 23
+          Top = 89
+          Width = 422
+          Caption = 'Upload QSO data immediately after save, update or delete'
+          TabOrder = 3
+        end
+        object Label208: TLabel
+          Left = 200
+          Height = 17
+          Top = 36
+          Width = 56
+          Caption = 'API Key:'
+          ParentColor = False
+        end
+        object edtQrzCode: TEdit
+          Left = 200
+          Height = 25
+          Top = 57
+          Width = 184
+          TabOrder = 2
+          Text = 'edtQrzCode'
+        end
+        object Label209: TLabel
+          Left = 9
+          Height = 17
+          Top = 125
+          Width = 54
+          Caption = 'Use this'
+          ParentColor = False
+        end
+        object cmbQrzColor: TColorBox
+          Left = 64
+          Height = 25
+          Top = 117
+          Width = 164
+          DefaultColorColor = clTeal
+          NoneColorColor = clMoneyGreen
+          Selected = clTeal
+          Style = [cbStandardColors, cbExtendedColors, cbSystemColors, cbPrettyNames]
+          ItemHeight = 28
+          TabOrder = 4
+        end
+        object Label210: TLabel
+          Left = 237
+          Height = 17
+          Top = 125
+          Width = 344
+          Caption = 'color to show information in status upload window'
+          ParentColor = False
+        end
+      end
     end
     object tabCondx: TTabSheet
       Caption = 'Propagation'

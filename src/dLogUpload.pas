@@ -8,16 +8,17 @@ uses
   Classes, SysUtils, sqldb, FileUtil, LResources,
   dynlibs, lcltype, ExtCtrls, sqlscript, process, mysql51dyn, ssl_openssl_lib,
   mysql55dyn, mysql55conn, mysql51conn, db, httpsend, blcksock, synautil, Forms,
-  Graphics, mysql56conn, mysql56dyn, mysql57dyn, mysql57conn;
+  Graphics, mysql56conn, mysql56dyn, mysql57dyn, mysql57conn, Regexpr;
 
 const
   C_HAMQTH       = 'HamQTH';
   C_CLUBLOG      = 'ClubLog';
   C_HRDLOG       = 'HRDLog';
+  C_QRZLOG       = 'qrz.com';
   C_ALLDONE      = 'ALLDONE';
   C_CLUBLOG_API  = '21507885dece41ca049fec7fe02a813f2105aff2';
 type
-  TWhereToUpload = (upHamQTH, upClubLog, upHrdLog);
+  TWhereToUpload = (upHamQTH, upClubLog, upHrdLog, upQrzLog);
 
 type
 
@@ -41,14 +42,15 @@ type
     function  GetQSOInAdif(id_cqrlog_main : Integer) : String;
     function  EncodeBandForClubLog(band : String) : String;
     function  ParseHrdLogOutput(Output : String; var Response : String) : Integer;
+    function  ParseQrzLogOutput(Output : String; var Response : String) : Integer;
   public
     csLogUpload  : TRTLCriticalSection;
 
-    function  UploadLogData(Url : String; data : TStringList; var Response : String; var ResultCode : Integer) : Boolean;
+    function  UploadLogData(where : TWhereToUpload; Url : String; data : TStringList; var Response : String; var ResultCode : Integer) : Boolean;
     function  CheckUserUploadSettings(where : TWhereToUpload) : String;
     function  GetLogUploadColor(where : TWhereToUpload) : Integer;
     function  GetUploadUrl(where : TWhereToUpload; cmd : String) : String;
-    function  GetResultMessage(where : TWhereToUpload; Response : String; ResultCode : Integer; var FatalError : Boolean) : String;
+    function  GetResultMessage(where : TWhereToUpload; Response : String; ResultCode : Integer; var ErrorCode : Integer) : String;
     function  LogUploadEnabled : Boolean;
 
     procedure MarkAsUploadedToAllOnlineLogs;
@@ -107,7 +109,7 @@ begin
 end;
 
 
-function TdmLogUpload.UploadLogData(Url : String; data : TStringList; var Response : String; var ResultCode : Integer) : Boolean;
+function TdmLogUpload.UploadLogData(where : TWhereToUpload; Url : String; data : TStringList; var Response : String; var ResultCode : Integer) : Boolean;
 var
   HTTP  : THTTPSend;
   Bound : string;
@@ -125,33 +127,63 @@ begin
     HTTP.UserName  := cqrini.ReadString('Program','User','');
     HTTP.Password  := cqrini.ReadString('Program','Passwd','');
 
-    for i:=0 to data.Count-1 do
-    begin
-      Key   := copy(data.Strings[i],1,Pos('=',data.Strings[i])-1);
-      Value := copy(data.Strings[i],Pos('=',data.Strings[i])+1,Length(data.Strings[i])-Pos('=',data.Strings[i])+1);
+    if (where =  upHamQTH) or (where = upClubLog) or (where = upHrdLog) then
+      begin
+      for i:=0 to data.Count-1 do
+      begin
+        Key   := copy(data.Strings[i],1,Pos('=',data.Strings[i])-1);
+        Value := copy(data.Strings[i],Pos('=',data.Strings[i])+1,Length(data.Strings[i])-Pos('=',data.Strings[i])+1);
 
-      WriteStrToStream(HTTP.Document,
-        '--' + Bound + CRLF +
-        'Content-Disposition: form-data; name=' + AnsiQuotedStr(Key, '"') + CRLF +
-        'Content-Type: text/plain' + CRLF +
-        CRLF);
-      WriteStrToStream(HTTP.Document, Value);
-      WriteStrToStream(HTTP.Document,CRLF)
-    end;
-    WriteStrToStream(HTTP.Document,'--' + Bound + '--' + CRLF);
+        WriteStrToStream(HTTP.Document,
+          '--' + Bound + CRLF +
+          'Content-Disposition: form-data; name=' + AnsiQuotedStr(Key, '"') + CRLF +
+          'Content-Type: text/plain' + CRLF +
+          CRLF);
+        WriteStrToStream(HTTP.Document, Value);
+        WriteStrToStream(HTTP.Document,CRLF)
+      end;
+      WriteStrToStream(HTTP.Document,'--' + Bound + '--' + CRLF);
 
-    HTTP.MimeType := 'multipart/form-data; boundary=' + Bound;
-    if HTTP.HTTPMethod('POST',Url) then
-    begin
-      l.LoadFromStream(HTTP.Document);
-      ResultCode := http.ResultCode;
-      Response   := l.Text;
-      Result     := True
+      HTTP.MimeType := 'multipart/form-data; boundary=' + Bound;
+      if HTTP.HTTPMethod('POST',Url) then
+      begin
+        l.LoadFromStream(HTTP.Document);
+        ResultCode := http.ResultCode;
+        Response   := l.Text;
+        Result     := True
+      end
+      else begin
+        ResultCode := http.ResultCode;
+        Response   := '';
+        Result     := False
+      end
     end
-    else begin
-      ResultCode := http.ResultCode;
-      Response   := '';
-      Result     := False
+    else if (where = upQrzLog) then
+      begin
+      HTTP.MimeType := 'application/x-www-form-urlencoded';
+      for i:=0 to data.Count-1 do
+      begin
+        Key   := copy(data.Strings[i],1,Pos('=',data.Strings[i])-1);
+        Value := copy(data.Strings[i],Pos('=',data.Strings[i])+1,Length(data.Strings[i])-Pos('=',data.Strings[i])+1);
+
+        WriteStrToStream(HTTP.Document,Key+'='+Value);
+        if (i < data.Count-1) then
+          WriteStrToStream(HTTP.Document,'&');
+      end;
+      WriteStrToStream(HTTP.Document,CRLF);
+      WriteStrToStream(HTTP.Document,CRLF);
+      if HTTP.HTTPMethod('POST',Url) then
+      begin
+        l.LoadFromStream(HTTP.Document);
+        ResultCode := http.ResultCode;
+        Response   := l.Text;
+        Result     := True
+      end
+      else begin
+        ResultCode := http.ResultCode;
+        Response   := '';
+        Result     := False
+      end
     end
   finally
     FreeAndNil(HTTP);
@@ -433,6 +465,29 @@ begin
   end
 end;
 
+function TdmLogUpload.ParseQrzLogOutput(Output : String; var Response : String) : Integer;
+var
+  ErrPos   : Integer;
+  LogIdPos : Integer;
+begin
+  Result := 200;
+
+  // 200 OK - return LOGID
+  // 500+ Error
+  ErrPos := Pos('STATUS=FAIL',Output);
+  if ( ErrPos > 0) then
+  begin
+    Response := copy(Output,ErrPos+19,Pos('&EXTENDED',Output)-ErrPos-19);
+    if (Response = 'No LOGIDS parameter.') then Result := 500;
+    if (Response = 'Unable to add QSO to database: duplicate') then Result := 501;
+  end
+  else begin
+    LogIdPos := Pos('LOGID=', Output);
+    if ( LogIdPos > 0) then
+       Result := 200
+  end
+end;
+
 function TdmLogUpload.CheckUserUploadSettings(where : TWhereToUpload) : String;
 const
   C_IS_NOT_SET   = '%s is not set! Go to Preferences and change settings.';
@@ -458,6 +513,12 @@ begin
                     Result := C_HRDLOG + ' ' + Format(C_IS_NOT_SET,['Callsign'])
                   else if (cqrini.ReadString('OnlineLog','HrCode','')='') then
                     Result := C_HRDLOG + ' ' + Format(C_IS_NOT_SET,['Code'])
+                end;
+    upQrzLog :  begin
+                  if (cqrini.ReadString('OnlineLog','QrzUserName','')='') then
+                    Result := C_QRZLOG + ' ' + Format(C_IS_NOT_SET,['Callsign'])
+                  else if (cqrini.ReadString('OnlineLog','QrzCode','')='') then
+                    Result := C_QRZLOG + ' ' + Format(C_IS_NOT_SET,['Code'])
                 end
   end //case
 end;
@@ -468,7 +529,8 @@ begin
   case where of
     upHamQTH  : Result := cqrini.ReadInteger('OnlineLog','HaColor',clBlue);
     upClubLog : Result := cqrini.ReadInteger('OnlineLog','ClColor',clRed);
-    upHrdLog  : Result := cqrini.ReadInteger('OnlineLog','HrColor',clPurple)
+    upHrdLog  : Result := cqrini.ReadInteger('OnlineLog','HrColor',clPurple);
+    upQrzLog  : Result := cqrini.ReadInteger('OnlineLog','QrzColor',clTeal)
   end
 end;
 
@@ -490,6 +552,9 @@ begin
                    data.Add('Callsign='+cqrini.ReadString('OnlineLog','HrUserName',''));
                    data.Add('Code='+cqrini.ReadString('OnlineLog','HrCode',''));
                    data.Add('App=CQRLOG')
+                 end;
+    upQrzLog  :  begin
+                   data.Add('KEY='+cqrini.ReadString('OnlineLog','QrzCode',''));
                  end;
   end //case
 end;
@@ -520,6 +585,10 @@ begin
             GetAdifValue('MODE',Q2.FieldByName('mode').AsString)+
             GetAdifValue('FREQ',CurrToStr(Q2.FieldByName('freq').AsCurrency));
 
+    // qrz.com requires STATION_CALLSIGN to be set
+    if (where = upQrzLog) then
+      adif := adif+GetAdifValue('STATION_CALLSIGN',cqrini.ReadString('OnlineLog','QrzUserName',''));
+
     if (id_cqrlog_main>0) then
       adif := adif + GetQSOInAdif(id_cqrlog_main)
     else
@@ -535,7 +604,11 @@ begin
                    end;
       upHrdLog  :  begin
                      data.Add('ADIFData='+adif)
-                   end
+                   end;
+      upQrzLog  :  begin
+                     data.Add('ACTION=INSERT');
+                     data.Add('ADIF='+adif)
+                   end;
     end //case
   finally
     Q2.Close;
@@ -583,6 +656,10 @@ begin
                             GetAdifValue('CALL',Q2.FieldByName('old_callsign').AsString);
                     data.Add('ADIFKey='+adif);
                     data.Add('Cmd=DELETE')
+                   end;
+      upQrzLog  :  begin
+                    data.Add('ACTION=DELETE');
+                    data.Add('LOGIDS='+Q2.FieldByName('qrz_logid').AsString);
                    end
     end //case
   finally
@@ -602,14 +679,18 @@ begin
                   else
                     Result := 'https://secure.clublog.org/realtime.php'
                 end;
-    upHrdLog  : Result := 'http://robot.hrdlog.net/NewEntry.aspx'
+    upHrdLog  : Result := 'http://robot.hrdlog.net/NewEntry.aspx' ;
+    upQrzLog  : Result := 'http://logbook.qrz.com/api'
   end //case
 end;
 
-function TdmLogUpload.GetResultMessage(where : TWhereToUpload; Response : String; ResultCode : Integer; var FatalError : Boolean) : String;
+function TdmLogUpload.GetResultMessage(where : TWhereToUpload; Response : String; ResultCode : Integer; var ErrorCode : Integer) : String;
+var
+  tre      : String;
+  qrzLogId : String;
 begin
   Result     := '';
-  FatalError := False;
+  ErrorCode  := 0;
   Response   := Trim(Response);
 
   case where of
@@ -618,26 +699,26 @@ begin
                     200 : Result := 'OK';
                     500 : begin
                             Result     := Response;
-                            FatalError := True
+                            ErrorCode  := 1;
                           end;//something wrong with HamQTH server
                     400 : begin
                             Result := Response;
                             if (Response = 'QSO already exists in the log')  then
                               Result := 'Already exists'
                             else if (Response = 'QSO not found in the log!') then
-                              FatalError := False
+                              ErrorCode := 0
                             else begin
-                              FatalError := True; //QSO rejected
+                              ErrorCode  := 1; //QSO rejected
                               Result     := Response
                             end
                           end;
                     403 : begin
                             Result     := 'Access denied';
-                            FatalError := True
+                            Errorcode := 1
                           end
                     else begin
                       Result     := Response;
-                      FatalError := True
+                      ErrorCode  := 1
                     end
                   end
                 end;
@@ -647,29 +728,55 @@ begin
                     400 : begin
                             Result     := Response;
                             if (Pos('skipping qso',LowerCase(Response))=0) then //consider skiping QSO as non fatal error, the app can live with it :)
-                              FatalError := True
+                              ErrorCode := 1
                           end;
                     403 : begin
-                            Result := 'Access denied';
-                            FatalError := True
+                            Result := 'Access denied: ' + Response;
+                            ErrorCode := 1
                           end;
                     500 : begin
                             Result := 'Internal error';
-                            FatalError := True
+                            ErrorCode := 1
                           end;
                     404 : begin
                             Result     := Response;
-                            FatalError := True
+                            if (Response = 'QSO Details Not Matched') then
+                            begin
+                                ErrorCode := 2;
+                            end
+                            else
+                            begin
+                                ErrorCode := 1;
+                            end;
                           end
                   end //case
                 end;
     upHrdLog  : begin
                   case ParseHrdLogOutput(Response,Result) of
                     200 : Result := 'OK';
-                    400 : FatalError := True;
-                    403 : FatalError := True;
-                    500 : FatalError := True;
-                    404 : FatalError := True
+                    400 : ErrorCode := 1;
+                    403 : ErrorCode := 1;
+                    500 : ErrorCode := 1;
+                    404 : ErrorCode := 1
+                  end //case
+                end;
+    upQrzLog  : begin
+                  case ParseQrzLogOutput(Response,Result) of
+                    200 : begin
+                               tre := '.*LOGID=(\d+).*';
+                               qrzLogId := ReplaceRegExpr(tre, Response, '$1', True);
+                               Result := 'OK ('+qrzLogId+')';
+                          end;
+                    // 500 - Missing LogID Parameter
+                    500 : begin
+                            ErrorCode := 2;
+                            Result := 'LogID missing'
+                          end;
+                    // Duplicate QSO
+                    501 : begin
+                            ErrorCode := 2;
+                            Result := 'Duplicate'
+                          end;
                   end //case
                 end
   end //case
