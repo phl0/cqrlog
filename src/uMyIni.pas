@@ -5,7 +5,7 @@ unit uMyIni;
 interface
 
 uses
-  Classes, SysUtils, iniFiles, dynlibs;
+  Classes, SysUtils, iniFiles, dynlibs,strutils;
 
 type
   TMyIni = class
@@ -225,7 +225,7 @@ end;
 
 function TMyIni.LocalOnly(Section : String) : Boolean;
 begin
-  Result := Pos(Section+',',LocalSections)>0
+  Result := IsWordPresent(Section,LocalSections,[',']);
 end;
 
 procedure TMyIni.LoadLocalSectionsList;
@@ -246,6 +246,6 @@ end;
 initialization
 
 finalization
-  Writeln('Closing ini file ...')
+// Writeln('Closing ini file ...') // we do not want this with options "version" and "debug", and it is not needed in any way
 end.
 

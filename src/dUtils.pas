@@ -51,14 +51,14 @@ const
     ':', '|', '-', '=', '+', '@', '#', '*', '%', '_', '(', ')', '$', '<', '>'];
   empty_freq = '0.00000';
   empty_azimuth = '0.0';
-  cMaxModes = 47; //last added FT4 and JS8
+  cMaxModes = 48; //last added FST4
   cModes: array [0..cMaxModes] of string =
     ('CW', 'SSB', 'AM', 'FM', 'RTTY', 'SSTV', 'PACTOR', 'PSK', 'ATV', 'CLOVER', 'GTOR', 'MTOR',
     'PSK31', 'HELL', 'MT63',
     'QRSS', 'CWQ', 'BPSK31', 'MFSK', 'JT44', 'FSK44', 'WSJT', 'AMTOR',
     'THROB', 'BPSK63', 'PACKET',
     'OLIVIA', 'MFSK16', 'JS8', 'JT4','JT6M', 'JT65', 'JT65A', 'JT65B', 'JT65C',
-    'JT9', 'QRA64', 'ISCAT', 'MSK144', 'FT8', 'FT4', 'FSK441', 'PSK125',
+    'JT9', 'QRA64', 'ISCAT', 'MSK144', 'FT8', 'FT4', 'FST4', 'FSK441', 'PSK125',
     'PSK63', 'WSPR', 'PSK250', 'ROS', 'DIGITALVOICE');
   cMaxBandsCount = 27; //26 bands
 
@@ -195,6 +195,7 @@ type
     procedure LoadBandsSettings;
     procedure FillBandCombo(cmb : TComboBox);
     procedure ShowHamQTHInBrowser(call : String);
+    procedure ShowUsrUrl;
     procedure SortArray(l,r : Integer);
     procedure OpenInApp(what : String);
     procedure LoadRigsToComboBox(CurrentRigId : String; RigCtlBinaryPath : String; RigComboBox : TComboBox);
@@ -292,6 +293,7 @@ type
     function  MyDateTimeToStr(DateTime : TDateTime) : String;
     function  LoadVisibleColumnsConfiguration :  TColumnVisibleArray;
     function  StdFormatLocator(loc:string):String;
+    function  IsHeDx(call:String; CqDir:String = ''):boolean;
 
 end;
 
@@ -302,7 +304,7 @@ implementation
   {$R *.lfm}
 
 { TdmUtils }
-uses dData, dDXCC, fEnterFreq, fTRXControl, uMyini;
+uses dData, dDXCC, fEnterFreq, fTRXControl, uMyini, fNewQSO;
 
 function TdmUtils.LetterFromMode(mode: string): string;
 begin
@@ -1941,6 +1943,18 @@ begin
     fqSize := cqrini.ReadInteger('Fonts', 'qSize', 10)
   end;
 
+  //otherwise NewQSO buttons do not fit to space
+   if ( fbSize > 10 )then
+     Begin
+          frmNewQSO.btnSave.Caption:='Save QSO';
+          frmNewQSO.btnCancel.Caption:= 'Quit';
+     end
+    else
+     Begin
+          frmNewQSO.btnSave.Caption:='Save QSO [enter]';
+          frmNewQSO.btnCancel.Caption:= 'Quit [CTRL+Q]';
+     end;
+
   for i := 0 to aForm.ComponentCount - 1 do
   begin
     //edits, memo combo, spinedit ...
@@ -3229,6 +3243,8 @@ end;
 
 function TdmUtils.IsQSLViaValid(Text: string): boolean;
 begin
+  Result :=false;
+  if Text='' then exit; //do not allow empty RegExp
   reg.InputString := Text;
   reg.Expression := '\A\w{1,2}\d[A-Z]{1,3}\Z';
   Result := reg.ExecPos(1);
@@ -4092,7 +4108,8 @@ begin
         //DL7OAP: DOK can be 'H24', 'h 24' or 'H-24', etc.
         //thats why we clean it with RegExp so only letters and figures are left
         dok := GetTagValue(m.Text, '<dok>');
-        dok := ReplaceRegExpr('[^a-zA-Z0-9]', dok, '', True); //ARegExpr, AInputStr, AReplaceStr
+        if (trim(dok) <> '') then
+           dok := ReplaceRegExpr('[^a-zA-Z0-9]', dok, '', True); //ARegExpr, AInputStr, AReplaceStr
         dok := LeftStr(UpperCase(dok),12); // now all upcase and cut to maximal length of 12 of dok field
       end
     end
@@ -4116,6 +4133,34 @@ begin
   finally
     AProcess.Free
   end;
+end;
+procedure TdmUtils.ShowUsrUrl;
+var
+  AProcess: TProcess;
+  cmd       :String;
+begin
+  cmd := cqrini.ReadString('NewQSO', 'UsrBtn', 'https://www.qrzcq.com/call/$CALL');
+  if (cmd<>'') then
+   begin
+      AProcess := TProcess.Create(nil);
+      try
+          cmd := StringReplace(cmd,'$CALL',frmNewQSO.edtCall.Text,[rfReplaceAll]);
+          cmd := StringReplace(cmd,'$BAND',dmUtils.GetBandFromFreq(frmNewQSO.cmbFreq.Text),[rfReplaceAll]);
+          cmd := StringReplace(cmd,'$MODE',frmNewQSO.cmbFreq.Text,[rfReplaceAll]);
+          cmd := StringReplace(cmd,'$FREQ',frmNewQSO.cmbMode.Text,[rfReplaceAll]);
+          cmd := StringReplace(cmd,'$LOC',frmNewQSO.edtGrid.Text,[rfReplaceAll]);
+          if not(frmNewQSO.fEditQSO or frmNewQSO.fViewQSO) then
+             cmd := StringReplace(cmd,'$MYLOC',frmNewQSO.CurrentMyLoc,[rfReplaceAll])
+            else  cmd := StringReplace(cmd,'$MYLOC',frmNewQSO.EditViewMyLoc,[rfReplaceAll]);
+        AProcess.Executable  := cqrini.ReadString('Program', 'WebBrowser', MyDefaultBrowser);
+        AProcess.Parameters.Add(cmd);
+        if dmData.DebugLevel>=1 then ;
+        Writeln('AProcess.Executable: ',AProcess.Executable,' Parameters: ',AProcess.Parameters.Text);
+        AProcess.Execute
+      finally
+        AProcess.Free
+      end;
+   end;
 end;
 
 function TdmUtils.DateInSOTAFormat(date: TDateTime): string;
@@ -4795,4 +4840,64 @@ Begin
      //else use default browser that is defined at program early start
 end;
 
+function  TdmUtils.IsHeDx(call:String; CqDir:String = ''):boolean;
+ // Find out is call dx for me.
+ // If direction<>'' is directed cq pointed to me
+var
+  adif   :word;
+  pfx    : String = '';
+  mycont : String = '';
+  cont   : String = '';
+  country: String = '';
+  waz    : String = '';
+  posun  : String = '';
+  itu    : String = '';
+  lat    : String = '';
+  long   : String = '';
+
+begin
+    adif:= dmDXCC.id_country(cqrini.ReadString('Station', 'Call', ''), Now(), pfx, mycont,  country, WAZ, posun, ITU, lat, long);
+    adif:= dmDXCC.id_country(call, Now(), pfx, cont,  country, WAZ, posun, ITU, lat, long);
+
+    if CqDir <> '' then
+      begin
+       if ((mycont <> '') and (cont <> '')) then
+           //we can do some comparisons of continents and call dirction
+           begin
+             if ((CqDir = 'DX') and (mycont = cont)) then
+             begin
+               //I'm not DX for caller:
+               Result := false;
+               if dmData.DebugLevel >= 1 then
+                                    Writeln('My continent is:', mycont, '  His continent is:', cont,' is DX/CQ for me:',Result);
+               exit
+             end
+             else  //calling specified continent
+             if ((CqDir <> 'DX') and (CqDir <> mycont)) then
+              begin
+               //CQ NOT directed to my continent
+               Result := false;
+               if dmData.DebugLevel >= 1 then
+                                    Writeln('My continent is:', mycont, '  His continent is:', cont,' is DX/CQ for me:',Result);
+               exit
+              end
+             else
+              Begin
+               //CQ directed to my continent
+               Result :=true;
+               if dmData.DebugLevel >= 1 then
+                                    Writeln('My continent is:', mycont, '  His continent is:', cont,' is DX/CQ for me:',Result);
+               exit
+              end;
+           end
+      end
+     else
+      Begin
+       //no directed CQ just find out if call is DX for me
+       Result := (mycont <> cont);
+       if dmData.DebugLevel >= 1 then
+                            Writeln('My continent is:', mycont, '  His continent is:', cont,' is DX/CQ for me:',Result);
+      end;
+end;
 end.
+

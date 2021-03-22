@@ -216,7 +216,12 @@ begin
   end;
 
   if fil_AllowOnlyCallReg then
-  begin
+   begin
+   if (trim(fil_AllowOnlyCallRegValue)='') or (trim(dxstn)='') then
+    begin    // do not allow empty regexp
+      if dmData.DebugLevel>=2 then Writeln('RBNMonitor: ','Station or allowed callsigns - empty ');
+      exit
+    end;
     reg.Expression  := fil_AllowOnlyCallRegValue;
     reg.InputString := dxstn;
     if not reg.Exec(1) then
@@ -276,17 +281,15 @@ begin
     2 : dxinfo := 'B';
     3 : dxinfo := 'M';
     else
-      dxinfo := ''
+     Begin
+      dxinfo := '';
+      if fil_NewDXCOnly then
+                        Begin
+                          if dmData.DebugLevel>=2 then Writeln('RBNMonitor: ','Not new one, band or mode - ',dxstn);
+                          exit;
+                        end;
+     end;
   end; //case
-
-  if fil_NewDXCOnly then
-  begin
-    if (index>0) and (index<4) then
-    begin
-      if dmData.DebugLevel>=2 then Writeln('RBNMonitor: ','Not new one, band or mode - ',dxstn);
-      exit
-    end
-  end;
 
   Result := True
 end;
