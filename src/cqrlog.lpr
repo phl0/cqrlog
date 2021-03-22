@@ -24,7 +24,7 @@ uses
   fNewCommentToCall, fFindCommentToCall, frExportPref, fExportPref,
   fWorkedGrids, fPropDK0WCY, fRemind, fContest, fMonWsjtx, fXfldigi,
   dMembership, dSatellite, uRigControl, uRotControl, azidis3, aziloc,
-  fDOKStat, fCabrilloExport, uDbUtils, dQTHProfile, uConnectionInfo;
+  fDOKStat, fCabrilloExport, uDbUtils, dQTHProfile, uConnectionInfo, znacmech;
 var
   Splash : TfrmSplash;
 
@@ -36,6 +36,17 @@ begin
   // Fix default BidiMode
   // see http://bugs.freepascal.org/view.php?id=22044
   Application.BidiMode:= bdLeftToRight;
+
+  Application.CaseSensitiveOptions:=False;
+  if ((Application.HasOption('v','version')) or (Application.HasOption('h','help'))) then
+     Begin
+        Writeln('Cqrlog Ver:',cVERSION,' Date:',cBUILD_DATE);
+        if Application.HasOption('v','version') then exit;
+        Writeln('-h     --help           Print this help and exit');
+        Writeln('-v     --version        Print version and exit');
+        Writeln('       --debug=NR       Set debug level to NR');
+        Exit;
+     end;
 
   Application.Initialize;
   Splash := TfrmSplash.create(application);

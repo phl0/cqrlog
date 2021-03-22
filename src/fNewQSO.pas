@@ -21,7 +21,7 @@ uses
   LCLType, RTTICtrls, httpsend, Menus, ActnList, process, db,
   uCWKeying, ipc, baseunix, dLogUpload, blcksock, dateutils,
   fMonWsjtx, fWorkedGrids,fPropDK0WCY, fAdifImport, RegExpr,
-  FileUtil, LazFileUtils;
+  FileUtil, LazFileUtils, sqldb, strutils;
 
 const
   cRefCall = 'Ref.call (CTRL+R): ';
@@ -88,6 +88,7 @@ type
     acUploadToHamQTH: TAction;
     acTune : TAction;
     btnClearSatellite : TButton;
+    cbOffline: TCheckBox;
     cbTxLo: TCheckBox;
     cbRxLo: TCheckBox;
     cbSpotRX: TCheckBox;
@@ -117,8 +118,7 @@ type
     lblDOK: TLabel;
     lblStatellite : TLabel;
     lblRXFreq : TLabel;
-    Label36 : TLabel;
-    lblQSLRcvdDate: TLabel;
+    lblRXMhz : TLabel;
     mCallBook : TMemo;
     mCountry : TMemo;
     MenuItem32 : TMenuItem;
@@ -170,7 +170,6 @@ type
     btnDXCCRef: TButton;
     btnQSLMgr: TButton;
     btnSave: TButton;
-    cbOffline: TCheckBox;
     cmbFreq: TComboBox;
     cmbIOTA: TComboBox;
     cmbMode: TComboBox;
@@ -195,7 +194,7 @@ type
     edtStartTime: TEdit;
     edtState: TEdit;
     edtWAZ: TEdit;
-    GroupBox1: TGroupBox;
+    gbDXCCdata: TGroupBox;
     imgMain: TImageList;
     imgMain1: TImageList;
     lblDate: TLabel;
@@ -237,7 +236,6 @@ type
     lblAmbiguous: TLabel;
     lblAzi: TLabel;
     lblCall: TLabel;
-    lblCfmLoTW: TLabel;
     lblCont: TLabel;
     lblCountryInfo: TLabel;
     lblDXCC: TLabel;
@@ -331,28 +329,37 @@ type
     mnuNewQSO: TMenuItem;
     mnuFile: TMenuItem;
     mnuTRXControl: TMenuItem;
-    pgDetails : TPageControl;
-    Panel1: TPanel;
-    Panel2: TPanel;
-    Panel3: TPanel;
-    Panel4: TPanel;
-    Panel5 : TPanel;
-    Panel6: TPanel;
+    pnlSbtn2: TPanel;
+    pnlSbtn0: TPanel;
     pnlOffline: TPanel;
+    pgDetails : TPageControl;
+    pnlAll: TPanel;
+    pnlDXCCinfo: TPanel;
+    pnlQsoInfo: TPanel;
+    pnlProfiles: TPanel;
+    pnlDXCCCountry : TPanel;
+    pnlQSOinput: TPanel;
+    pnlSbtn1: TPanel;
+    pnlSbtn3: TPanel;
+    pnlSbtn4: TPanel;
+    pnlSbtn5: TPanel;
+    pnlSbtn6: TPanel;
+    pnlSbtn7: TPanel;
     popEditQSO: TPopupMenu;
     sbNewQSO: TStatusBar;
-    sbtneQSL : TSpeedButton;
+    sbtnAttach: TSpeedButton;
+    sbtneQSL: TSpeedButton;
+    sbtnHamQTH: TSpeedButton;
+    sbtnLocatorMap: TSpeedButton;
+    sbtnUsrbtn: TSpeedButton;
+    sbtnLoTW: TSpeedButton;
+    sbtnQRZ: TSpeedButton;
+    sbtnQSL: TSpeedButton;
     sgrdStatistic : TStringGrid;
     btnSunRise: TSpeedButton;
-    sbtnLocatorMap: TSpeedButton;
     SpeedButton2: TSpeedButton;
     SpeedButton3: TSpeedButton;
     btnSunSet: TSpeedButton;
-    sbtnAttach: TSpeedButton;
-    sbtnQSL: TSpeedButton;
-    sbtnQRZ: TSpeedButton;
-    sbtnLoTW: TSpeedButton;
-    sbtnHamQTH : TSpeedButton;
     sbtnRefreshTime: TSpeedButton;
     tabDXCCStat : TTabSheet;
     tabSatellite : TTabSheet;
@@ -564,6 +571,7 @@ type
     procedure sbtnQSLClick(Sender: TObject);
     procedure sbtnQRZClick(Sender: TObject);
     procedure sbtnHamQTHClick(Sender : TObject);
+    procedure sbtnUsrbtnClick(Sender: TObject);
     procedure tmrESCTimer(Sender: TObject);
     procedure tmrEndStartTimer(Sender: TObject);
     procedure tmrEndTimer(Sender: TObject);
@@ -577,8 +585,6 @@ type
     procedure tmrWsjtxTimer(Sender: TObject);
   private
     StartRun : Boolean;
-    fEditQSO : Boolean;
-    fViewQSO : Boolean;
     old_stat_adif : Word;
     TabUsed : Boolean;
     old_cmode   : String;
@@ -617,6 +623,10 @@ type
     IsJS8Callrmt     : Boolean; //way to isolate adif from JS8's JSON
 
     Op         : String;
+    QSLcfm,
+    eQSLcfm,
+    LoTWcfm    : String;
+    UsrAssignedProfile : String;
     procedure showDOK(stat:boolean);
     procedure ShowDXCCInfo(ref_adif : Word = 0);
     procedure ShowFields;
@@ -638,6 +648,7 @@ type
     procedure InsertNameQTH;
     procedure UpdateFKeyLabels;
     procedure ClearStatGrid;
+    procedure AddBandsToStatGrid;
     procedure LoadSettings;
     procedure SaveSettings;
     procedure ChangeCallBookCaption;
@@ -662,8 +673,11 @@ type
 
     function CheckFreq(freq : String) : String;
     procedure WaitWeb(secs:integer);
+    procedure ShowOperator;
 
   public
+    fEditQSO    : Boolean;
+    fViewQSO    : Boolean;
     QTHfromCb   : Boolean;
     FromDXC     : Boolean;
     UseSpaceBar : Boolean;
@@ -691,6 +705,10 @@ type
     RepHead                :String;                //the heading for possible reply commands created
                                                   //includes message type #0 (change it)
     ContestNr             : integer;              //wsjtx 2.0 contest type definition in status msg
+
+    ModeBeforeChange      : String; //flush CW buffer after mode change
+    CurrentMyLoc          : String; //currently valid my locator global var and public for other units.
+    EditViewMyLoc         : String;  //this is needed for exeption when edit/viev myloc is not CurrentMyloc
 
     property EditQSO : Boolean read fEditQSO write fEditQSO default False;
     property ViewQSO : Boolean read fViewQSO write fViewQSO default False;
@@ -1003,6 +1021,23 @@ begin
   end
 end;
 
+procedure TfrmNewQSO.AddBandsToStatGrid;
+var
+  i : Integer;
+begin
+  sgrdStatistic.ColCount  := cMaxBandsCount;
+
+  for i:=0 to cMaxBandsCount-1 do
+  begin
+    if dmUtils.MyBands[i][0]='' then
+    begin
+      sgrdStatistic.ColCount  := i+1;
+      break
+    end;
+    sgrdStatistic.Cells[i+1,0] := dmUtils.MyBands[i][1];
+  end;
+end;
+
 procedure TfrmNewQSO.SetDateTime(EndTime : Boolean =  True);
 var
   date  : TDateTime;
@@ -1026,6 +1061,8 @@ var
   county, qsl_via  : String;
   award,state, dok : String;
   qslrdate         : String;
+  eqslrdate        : String;
+  lotw_qslrdate    : String;
   waz, itu         : String;
 begin
   sName    := '';
@@ -1037,6 +1074,8 @@ begin
   state    := '';
   dok      := '';
   qslrdate := '';
+  eqslrdate :='';
+  lotw_qslrdate :='';
   waz      := '';
   itu      := '';
   
@@ -1064,14 +1103,22 @@ begin
         if (dok = '') and (dmData.qQSOBefore.FieldByName('callsign').AsString=edtCall.Text) then
           dok := dmData.qQSOBefore.FieldByName('dok').AsString;
         if (qslrdate = '') and (not dmData.qQSOBefore.FieldByName('qslr_date').IsNull) then
-          lblQSLRcvdDate.Caption := 'QSL rcvd on '+dmData.qQSOBefore.FieldByName('qslr_date').AsString;
+          QSLcfm := dmData.qQSOBefore.FieldByName('qslr_date').AsString+'  '+
+                    dmData.qQSOBefore.FieldByName('band').AsString+'  QSL rcvd';
+        if (lotw_qslrdate = '') and (not dmData.qQSOBefore.FieldByName('lotw_qslrdate').IsNull) then
+          LoTWcfm := dmData.qQSOBefore.FieldByName('lotw_qslrdate').AsString+'  '+
+                     dmData.qQSOBefore.FieldByName('band').AsString+'  LoTW cfmd';
+        if (eqslrdate = '') and (not dmData.qQSOBefore.FieldByName('eqsl_qslrdate').IsNull) then
+          eQSlcfm := dmData.qQSOBefore.FieldByName('eqsl_qslrdate').AsString+'  '+
+                     dmData.qQSOBefore.FieldByName('band').AsString+'  eQSL rcvd';
         if (waz = '') and (dmData.qQSOBefore.FieldByName('callsign').AsString=edtCall.Text) then
           waz := dmData.qQSOBefore.FieldByName('waz').AsString;
         if (itu = '') and (dmData.qQSOBefore.FieldByName('callsign').AsString=edtCall.Text) then
           itu := dmData.qQSOBefore.FieldByName('itu').AsString;
+
         dmData.qQSOBefore.Prior
       end;
-      lblQSLRcvdDate.Visible := True
+
     finally
       dmData.qQSOBefore.Last;  //after this, dbgrid is not set to last record
       dmData.qQSOBefore.EnableControls;
@@ -1107,7 +1154,16 @@ var
 begin
   index := 0;
   lblCountryInfo.Caption := dmDXCC.DXCCInfo(adif,cmbFreq.Text,
-                            cmbMode.Text,index)
+                            cmbMode.Text,index);
+  if pos('UNKN',Uppercase(lblCountryInfo.Caption))>0 then lblCountryInfo.Font.Color:=clRed;
+  if pos('CONF',Uppercase(lblCountryInfo.Caption))>0 then lblCountryInfo.Font.Color:=clGreen;
+  if pos('NEW C',Uppercase(lblCountryInfo.Caption))>0 then
+  lblCountryInfo.Font.Color:=cqrini.ReadInteger('DXCluster','NewCountry',0);
+  if pos('NEW B',Uppercase(lblCountryInfo.Caption))>0 then
+  lblCountryInfo.Font.Color:=cqrini.ReadInteger('DXCluster','NewBand',0);
+  if pos('NEW M',Uppercase(lblCountryInfo.Caption))>0 then
+  lblCountryInfo.Font.Color:=cqrini.ReadInteger('DXCluster','NewMode',0);
+  lblCountryInfo.Refresh;
 end;
 
 procedure TfrmNewQSO.ShowDXCCInfo(ref_adif : Word = 0);
@@ -1161,6 +1217,9 @@ begin
   lblGreeting.Caption := dmUtils.GetGreetings(lblHisTime.Caption);
   mCountry.Clear;
   mCountry.Lines.Add(country);
+  if QSLcfm<>'' then mCountry.Lines.Add(QSLcfm);
+  if eQSLcfm<>'' then mCountry.Lines.Add(eQSLcfm);
+  if LoTWcfm<>'' then mCountry.Lines.Add(LoTWcfm);
   mCountry.Repaint;
   if not (fEditQSO or fViewQSO) then
   begin
@@ -1182,7 +1241,7 @@ procedure TfrmNewQSO.ClearGrayLineMapLine;
 var
   lat,long :currency;
 Begin
-  dmUtils.CoordinateFromLocator(dmUtils.CompleteLoc(copy(sbNewQSO.Panels[0].Text,Length(cMyLoc)+1,6)),lat,long);
+  dmUtils.CoordinateFromLocator(dmUtils.CompleteLoc(CurrentMyLoc),lat,long);
   lat := lat*-1;
   frmGrayLine.ob^.jachcucaru(true,long,lat,long,lat);
   frmGrayline.Refresh;
@@ -1219,11 +1278,11 @@ begin
   sbtneQSL.Visible       := False;
   sbtnHamQTH.Visible     := False;
   sbtnLocatorMap.Visible := False;
+  sbtnUsrBtn.Visible     := False;
   TabUsed    := False;
   fromNewQSO := False;
   FromDXC  := False;
-  fEditQSO := False;
-  fViewQSO := False;
+
   old_stat_adif := 0;
   old_adif := 0;
   lblQSOTakes.Visible := False;
@@ -1248,9 +1307,9 @@ begin
   old_time := '';
   old_rstr := '';
   old_rsts := '';
-  lblCfmLoTW.Visible := False;
-  lblQSLRcvdDate.Visible := False;
-  lblQSLRcvdDate.Caption := '';
+  QSLcfm:= '';
+  eQSLcfm := '';
+  LoTWcfm := '';
   lblCountryInfo.Caption := '';
   Mask  := '';
   lblQSONr.Caption := '0';
@@ -1299,18 +1358,27 @@ begin
     edtEndTime.Text   := sTimeOff;
     edtDate.Text      := sDate
   end;
-  dmData.InsertProfiles(cmbProfiles,False);
 
+  dmData.InsertProfiles(cmbProfiles,False);
   if old_prof = -1 then
     cmbProfiles.Text := dmData.GetDefaultProfileText
   else begin
     cmbProfiles.Text := dmData.GetProfileText(old_prof)
   end;
   //if cmbProfiles.Text <> '' then
-     cmbProfilesChange(nil);
+     //cmbProfilesChange(nil);
+
+  if fEditQSO or fViewQSO then
+    Begin
+      cmbProfiles.Text := UsrAssignedProfile;
+      Op := cqrini.ReadString('TMPQSO','OP','');
+      ShowOperator;
+      fEditQSO := False;
+      fViewQSO := False;
+    end;
 
   if sbNewQSO.Panels[0].Text = '' then
-    sbNewQSO.Panels[0].Text := cMyLoc + cqrini.ReadString('Station','LOC','');
+    sbNewQSO.Panels[0].Text := cMyLoc + CurrentMyLoc;
 
   cmbFreq.Text := cqrini.ReadString('TMPQSO','FREQ',cqrini.ReadString(
                   'NewQSO','FREQ','7.025'));
@@ -1359,6 +1427,7 @@ begin
   end;
   ChangeCallBookCaption;
   ClearStatGrid;
+  AddBandsToStatGrid;
   ClearGrayLineMapLine;
 
   if not AnyRemoteOn then
@@ -1380,6 +1449,7 @@ procedure TfrmNewQSO.LoadSettings;
 begin
   dmUtils.ModifyXplanetConf;
   dmUtils.LoadFontSettings(frmNewQSO);
+
   dmUtils.LoadBandLabelSettins;
   sbNewQSO.Panels[0].Width := 180;
   sbNewQSO.Panels[1].Width := 200;
@@ -1398,8 +1468,8 @@ begin
 
   dmData.LoadQSODateColorSettings;
 
-  InitializeCW;
-
+  if cqrini.ReadBool('CW', 'NoReset', false) then     //is set: user does not want reset CW keyer at rig switch/init
+                                        InitializeCW; //so we have to do it at least once: Here.
   Op := '';
 
   if dbgrdQSOBefore.Visible then
@@ -1699,6 +1769,7 @@ begin
   cqrini.DeleteKey('TMPQSO','FREQ');
   cqrini.DeleteKey('TMPQSO','Mode');
   cqrini.DeleteKey('TMPQSO','PWR');
+  cqrini.DeleteKey('TMPQSO','OP');
   cqrini.WriteBool('NewQSO','AutoMode',chkAutoMode.Checked);
   SavePosition;
   cqrini.WriteBool('NewQSO','ShowGrd',dbgrdQSOBefore.Visible);
@@ -1762,11 +1833,17 @@ begin
   old_cmode := '';
   old_cfreq := '';
 
+  QSLcfm    := '';
+  eQSLcfm   := '';
+  LoTWcfm   := '';
+
   Running      := False;
   EscFirstPressDone := False;
   ChangeDXCC   := False;
 
+  CurrentMyLoc := cqrini.ReadString('Station','LOC','');
   ClearAll;
+  AddBandsToStatGrid;
   edtCall.SetFocus;
   tmrRadio.Enabled := True;
   tmrStart.Enabled := True;
@@ -1775,6 +1852,8 @@ begin
   dmSatellite.SetListOfSatellites(cmbSatellite); //load combo box lists
   dmSatellite.SetListOfPropModes(cmbPropagation);
 
+  ModeBeforeChange := cmbMode.Text;
+  UsrAssignedProfile:= cmbProfiles.Text;   //initial value
 end;
 
 procedure TfrmNewQSO.tmrEndStartTimer(Sender: TObject);
@@ -1813,8 +1892,9 @@ begin
     edtEndTime.Text   := FormatDateTime('hh:mm',date);
     Takes := StartTime - Date;
     DecodeTime(Takes,h,m,s,ms);
-    lblQSOTakes.Caption := 'QSO takes ' + IntToStr(h) + ' hr, ' + IntToStr(m) +
-                           ' min, ' + IntToStr(s) + ' sec'
+    lblQSOTakes.Caption := 'QSO takes: ' + AddChar('0',IntToStr(h),2) + 'hr '
+                                         + AddChar('0',IntToStr(m),2) + 'min '
+                                         + AddChar('0',IntToStr(s),2) + 'sec'
   end
 end;
 
@@ -2391,7 +2471,7 @@ begin
              end;
           end;
 
-   'FT8':begin
+   'FT8','FST4':begin
            DecodeTime(Time,Hour,Min,Sec,HSec);
            if dmData.DebugLevel>=1 then Writeln(' Timer FT mode - Sec is: ',Sec);
            case Sec of
@@ -3032,10 +3112,10 @@ begin
             begin
                  if dmData.DebugLevel>=1 then Writeln('Tail logging part entered');
                  OpCall := UpperCase(trim(StrBuf(index)));  //operator callsign (in contest, club etc.)
-                 if ((OpCall<>'') and (Op = UpperCase(cqrini.ReadString('Station', 'Call', '')))) then
-                  Begin
-                   Op := OpCall;
-                   sbNewQSO.Panels[2].Text := cOperator+Op;
+                 if ((OpCall<>'') and (Op <> OpCall)) then
+                  Begin           //wsjt-x operator setting wins cqrlog operator setting
+                   Op := OpCall;  //for this qso only as it is currently used operation mode
+                   ShowOperator;  //This only flashes wsjt-x operator during save
                   end;
                  ExchR :=  trim(StrBuf(index));  //fake, this is actually "My call". Not used
                  ExchR :=  trim(StrBuf(index));  //fake, this is actually "My grid". Not used
@@ -3250,8 +3330,11 @@ begin
 
   dmData.SaveComment(edtCall.Text,mComment.Text);
 
-  myloc := sbNewQSO.Panels[0].Text;
-  myloc := copy(sbNewQSO.Panels[0].Text,Length(cMyLoc)+1,6);
+  if fEditQSO then
+    myloc := copy(sbNewQSO.Panels[0].Text,Length(cMyLoc)+1,6)
+   else
+    myloc := CurrentMyLoc;
+
   if NOT dmUtils.IsLocOK(myloc) then
     myloc := '';
 
@@ -3438,11 +3521,12 @@ begin
     frmMain.BringToFront;
     frmMain.dbgrdMain.SetFocus
   end
-  else
-    if not AnyRemoteOn then
+  else if not AnyRemoteOn then
      edtCall.SetFocus;
   UploadAllQSOOnline;
-  if frmWorkedGrids.Showing then frmWorkedGrids.UpdateMap
+  if frmWorkedGrids.Showing then frmWorkedGrids.UpdateMap;
+  Op := cqrini.ReadString('TMPQSO','OP','');
+  ShowOperator;
 end;
 
 procedure TfrmNewQSO.btnCancelClick(Sender: TObject);
@@ -3568,7 +3652,10 @@ begin
   end;
   if (key = 38) then //up arrow
   begin
-    edtState.SetFocus;
+    if edtState.IsVisible then
+      edtState.SetFocus
+    else
+      edtDOK.SetFocus;
     key := 0
   end
 end;
@@ -3978,7 +4065,7 @@ begin
     begin
       case Application.MessageBox('Do you want to backup your data?'+#13+#13+'("Cancel" = Do not exit cqrlog)','Exit & backup',mb_YesNoCancel+mb_IconQuestion) of
         idCancel : begin
-                     CloseAction := caNone;
+                     CloseAction := TCloseAction(caNone);
                      exit
                    end;
         idYes : CreateAutoBackup()
@@ -4042,7 +4129,11 @@ procedure TfrmNewQSO.cmbIOTAKeyDown(Sender: TObject; var Key: Word;
 begin
   if (key = 40) then  //down arrow
   begin
-    edtState.SetFocus;
+    if edtState.IsVisible then
+      edtState.SetFocus
+    else
+      edtDOK.SetFocus;
+
     key := 0
   end;
   if (key = 38) then //up arrow
@@ -4052,7 +4143,10 @@ begin
   end;
   if ((key = VK_SPACE) and UseSpaceBar) then
   begin
-    edtState.SetFocus;
+    if edtState.IsVisible then
+      edtState.SetFocus
+    else
+      edtDOK.SetFocus;
     key := 0
   end
 end;
@@ -4061,12 +4155,20 @@ procedure TfrmNewQSO.cmbModeChange(Sender: TObject);
 begin
   ShowCountryInfo;
   ChangeReports;
-  //flush CW buffer when entering to CW (specially HamLib keyer)
-  if ((Assigned(CWint)) and (cmbMode.Text='CW'))then CWint.StopSending;
+
+  if (ModeBeforeChange = 'CW') and (cmbMode.Text <> 'CW') then
+  begin
+    //flush CW buffer when entering to CW (specially HamLib keyer)
+    if (Assigned(CWint)) then
+      CWint.StopSending;
+  end;
+
+  ModeBeforeChange := cmbMode.Text;
 end;
 
 procedure TfrmNewQSO.cmbModeEnter(Sender: TObject);
 begin
+  ModeBeforeChange := cmbMode.Text;
   cmbMode.SelectAll
 end;
 
@@ -4091,7 +4193,8 @@ end;
 procedure TfrmNewQSO.btnDXCCRefClick(Sender: TObject);
 var
   waz,itu,cont,lat,long,cname : String;
-  old,new : String;
+  old : String;
+  q : TSQLQuery;
 begin
   if fViewQSO then
     exit;
@@ -4105,44 +4208,33 @@ begin
     begin
       if Pos('*',frmSelectDXCC.edtPrefix.Text) = 0 then
       begin
-        new   := dmDXCC.qValid.Fields[1].AsString;
-        cname := dmDXCC.qValid.Fields[2].AsString;
-        cont  := dmDXCC.qValid.Fields[3].AsString;
-        lat   := dmDXCC.qValid.Fields[5].AsString;
-        long  := dmDXCC.qValid.Fields[6].AsString;
-        itu   := dmDXCC.qValid.Fields[7].AsString;
-        waz   := dmDXCC.qValid.Fields[8].AsString;
-        adif  := dmDXCC.qValid.FieldByName('ADIF').AsInteger
+        q := dmDXCC.qValid;
       end
       else begin
-        new   := dmDXCC.qDeleted.Fields[1].AsString;
-        cname := dmDXCC.qDeleted.Fields[2].AsString;
-        cont  := dmDXCC.qDeleted.Fields[3].AsString;
-        lat   := dmDXCC.qDeleted.Fields[5].AsString;
-        long  := dmDXCC.qDeleted.Fields[6].AsString;
-        itu   := dmDXCC.qDeleted.Fields[7].AsString;
-        waz   := dmDXCC.qDeleted.Fields[8].AsString;
-        adif  := dmDXCC.qDeleted.FieldByName('ADIF').AsInteger
+        q := dmDXCC.qDeleted;
       end;
-      if old = new then
+      if old = q.Fields[1].AsString then
         exit;
+
       ChangeDXCC         := True;
-      edtDXCCRef.Text    := new;
-      lblDXCC.Caption    := new;
+      edtDXCCRef.Text    := q.Fields[1].AsString;
+      lblDXCC.Caption    := q.Fields[1].AsString;
       mCountry.Clear;
-      mCountry.Text      := cname;
-      lblWAZ.Caption     := waz;
-      lblITU.Caption     := itu;
-      lblCont.Caption    := cont;
-      lblLat.Caption     := lat;
-      lblLong.Caption    := long;
+      mCountry.Text      := q.Fields[2].AsString;
+      lblCont.Caption    := q.Fields[3].AsString;
+      lblLat.Caption     := q.Fields[5].AsString;
+      lblLong.Caption    := q.Fields[6].AsString;
+
+      waz := q.Fields[8].AsString;
+      itu := q.Fields[7].AsString;
       dmUtils.ModifyWAZITU(waz,itu);
       edtWAZ.Text        := waz;
       edtITU.Text        := itu;
+
       lblHisTime.Caption := dmUtils.HisDateTime(edtDXCCRef.Text);
       ShowCountryInfo;
-      ShowStatistic(adif);
-      if dmData.GetIOTAForDXCC(edtCall.Text,lblDXCC.Caption,cmbIOTA,dmUtils.MyStrToDate(edtDate.Text)) then
+      ShowStatistic(q.FieldByName('ADIF').AsInteger);
+      if dmData.GetIOTAForDXCC(edtCall.Text, lblDXCC.Caption, cmbIOTA, dmUtils.MyStrToDate(edtDate.Text)) then
         lblIOTA.Font.Color := clRed
       else
         lblIOTA.Font.Color := clDefault
@@ -5209,16 +5301,17 @@ begin
 end;
 
 procedure TfrmNewQSO.cmbProfilesChange(Sender: TObject);
-var
-  myloc : String;
+
 begin
-  if cmbProfiles.Text = '' then
-   myloc :=  cqrini.ReadString('Station','LOC','')
+   if cmbProfiles.Text = '' then
+   CurrentMyLoc :=  cqrini.ReadString('Station','LOC','')
   else
-   myloc := dmData.GetMyLocFromProfile(cmbProfiles.Text);
-  if myloc <> '' then
-     sbNewQSO.Panels[0].Text := cMyLoc + myloc;
-  if dmData.DebugLevel >=1 then Writeln(cmbProfiles.Text)
+   CurrentMyLoc := dmData.GetMyLocFromProfile(cmbProfiles.Text);
+  if CurrentMyloc <> '' then
+     sbNewQSO.Panels[0].Text := cMyLoc + CurrentMyLoc;
+
+  UsrAssignedProfile:= cmbProfiles.Text;   //this is only place for change value
+  if dmData.DebugLevel >=1 then Writeln('Set profile: ',cmbProfiles.Text)
 end;
 
 procedure TfrmNewQSO.cmbQSL_RKeyDown(Sender: TObject; var Key: Word;
@@ -5303,6 +5396,7 @@ begin
     exit;
   sbtnQRZ.Visible    := True;
   sbtnHamQTH.Visible := True;
+  sbtnUsrBtn.Visible := True;
   if cqrini.ReadBool('LoTW','ShowInfo',True) then
   begin
     sbtneQSL.Visible := dmData.UseseQSL(edtCall.Text);
@@ -5499,6 +5593,7 @@ begin
         old_cmode := '';
       end
       else begin
+
         if Assigned(CWint) then CWint.StopSending;
         EscFirstPressDone   := True;
         tmrESC.Enabled := True
@@ -5529,7 +5624,7 @@ begin
       end;
       Caption := dmUtils.GetNewQSOCaption('New QSO');
       fViewQSO := False;
-      fEditQSO := False
+      fEditQSO := False;
     end
   end
   else
@@ -5692,13 +5787,13 @@ begin
     dmUtils.EnterFreq;
     key := 0
   end;
-  if ((Shift = [ssAlt]) and (key = VK_V)) then
+  if ((Shift = [ssAlt]) and (key = VK_V)) then  //Alt+V
     frmTRXControl.btnMemDwn.Click;
-  if ((Shift = [ssAlt]) and (key = VK_W)) then
+  if ((Shift = [ssAlt]) and (key = VK_W)) then  //Alt+W
     cmbQSL_S.text:='SB';
-  if ((Shift = [ssAlt]) and (key = VK_N)) then
+  if ((Shift = [ssAlt]) and (key = VK_N)) then  //Alt+N
     cmbQSL_S.text:='N';
-  if ((Shift = [ssAlt]) and (key = VK_O)) then
+  if ((Shift = [ssAlt]) and (key = VK_O)) then //Alt+O
   begin
     with TfrmChangeOperator.Create(self) do
     try
@@ -5711,9 +5806,8 @@ begin
          else
           Op:= '';
         if dmData.DebugLevel>=1 then writeln('Operator changed: '+Op);
-         if Op<>UpperCase(cqrini.ReadString('Station', 'Call', ''))  then
-              sbNewQSO.Panels[2].Text := cOperator+Op
-           else sbNewQSO.Panels[2].Text :='';
+        cqrini.WriteString('TMPQSO','OP',Op);
+        ShowOperator;
       end;
     finally
       Free;
@@ -5744,12 +5838,14 @@ begin
     #12 : begin                    // CTRL+L
             with TfrmChangeLocator.Create(self) do
             try
-              edtLocator.Text := copy(sbNewQSO.Panels[0].Text,Length(cMyLoc)+1,10);
+              edtLocator.Text := CurrentMyLoc;
               ShowModal;
               if ModalResult = mrOk then
               begin
-                sbNewQSO.Panels[0].Text := cMyLoc + edtLocator.Text;
-                cqrini.WriteString('Station','LOC',edtLocator.Text)
+                CurrentMyLoc := edtLocator.Text;
+                sbNewQSO.Panels[0].Text := cMyLoc + CurrentMyLoc;
+                // We don't want the temporary locator to be saved permanently
+                // cqrini.WriteString('Station','LOC',edtLocator.Text)
               end;
             finally
               Free;
@@ -5840,7 +5936,9 @@ var
   QSOmode:String;
 begin
     QSOMode :=       dmData.qQSOBefore.FieldByName('mode').AsString;
-    if ((upcase(QSOMode) = 'JS8') or (upcase(QSOMode) = 'FT4')) then QSOMode := 'MFSK';
+    if  ((upcase(QSOMode) = 'JS8')
+      or (upcase(QSOMode) = 'FT4')
+      or (upcase(QSOMode) = 'FST4')) then QSOMode := 'MFSK';
 
     frmMain.eQSLView( dmData.qQSOBefore.FieldByName('qsodate').AsString,
                       dmData.qQSOBefore.FieldByName('time_on').AsString,
@@ -5878,7 +5976,18 @@ begin
 end;
 
 procedure TfrmNewQSO.popEditQSOPopup(Sender: TObject);
+var
+   v:boolean;
 begin
+    v := dmData.qQSOBefore.RecordCount>0;
+    mnuViewQso.Enabled:=v;
+    mnuEditQso.Enabled:=v;
+    mnuHamQth.Enabled:=v;
+    mnuQrz.Enabled:=v;
+    mnuIK3QAR.Enabled:=v;
+    mnueQSLView.Enabled:=v;
+    if not v then exit;
+
     mnueQSLView.Visible :=  pos('E',dmData.qQSOBefore.FieldByName('eqsl_qsl_rcvd').AsString)>0;
     if dmData.DebugLevel>=1 then writeln(dmData.qQSOBefore.FieldByName('callsign').AsString,' ',
                                          dmData.qQSOBefore.FieldByName('eqsl_qsl_rcvd').AsString )
@@ -5920,6 +6029,11 @@ end;
 procedure TfrmNewQSO.sbtnHamQTHClick(Sender : TObject);
 begin
   dmUtils.ShowHamQTHInBrowser(edtCall.Text)
+end;
+
+procedure TfrmNewQSO.sbtnUsrbtnClick(Sender: TObject);
+begin
+  dmUtils.ShowUsrUrl;
 end;
 
 procedure TfrmNewQSO.sbtnLocatorMapClick(Sender: TObject);
@@ -6114,7 +6228,9 @@ begin
     exit;
   old_stat_adif := ref_adif;
   sgrdStatistic.ColCount  := cMaxBandsCount;
+
   ClearStatGrid;
+  AddBandsToStatGrid;
 
   space := ' ';
   if cqrini.ReadBool('Fonts','GridDotsInsteadSpaces',False) = True then
@@ -6129,7 +6245,7 @@ begin
       sgrdStatistic.ColCount  := i+1;
       break
     end;
-    sgrdStatistic.Cells[i+1,0] := dmUtils.MyBands[i][1];
+
     sgrdStatistic.Cells[i+1,1] := space+space+space;
     sgrdStatistic.Cells[i+1,2] := space+space+space;
     sgrdStatistic.Cells[i+1,3] := space+space+space;
@@ -6245,7 +6361,7 @@ begin
 
   //SunDelta := cqrini.ReadFloat('Program','SunOffset',0);
 
-  myloc := copy(sbNewQSO.Panels[0].Text,Length(cMyLoc)+1,6);
+  myloc := CurrentMyLoc;
   if lblDXCC.Caption = '!' then
   begin
     lblQRA.Caption := '';
@@ -6332,7 +6448,8 @@ begin
   EscFirstPressDone := False;
   ChangeDXCC   := False;
   dmData.InsertProfiles(cmbProfiles,true);
-  
+  EditViewMyLoc :='';
+
   if fromNewQSO then
   begin
     cmbProfiles.Text  := dmData.GetProfileText(dmData.qQSOBefore.FieldByName('profile').AsInteger);
@@ -6366,16 +6483,17 @@ begin
     edtState.Text     := Trim(dmData.qQSOBefore.FieldByName('state').AsString);
     edtDOK.Text       := Trim(dmData.qQSOBefore.FieldByName('dok').AsString);
     lotw_qslr         := dmData.qQSOBefore.FieldByName('lotw_qslr').AsString;
+
     if lotw_qslr = 'L' then
-    begin
-      lblCfmLoTW.Caption := 'QSO confirmed by LoTW ' + dmData.qQSOBefore.FieldByName('lotw_qslrdate').AsString;
-      lblCfmLoTW.Visible := True
-    end;
+          LoTWcfm:= dmData.qQSOBefore.FieldByName('lotw_qslrdate').AsString + '  '+
+                    dmData.qQSOBefore.FieldByName('band').AsString +'  LoTW cfmd';
     if not dmData.qQSOBefore.FieldByName('qslr_date').IsNull then
-    begin
-      lblQSLRcvdDate.Caption := 'QSL rcvd on '+dmData.qQSOBefore.FieldByName('qslr_date').AsString;
-      lblQSLRcvdDate.Visible := True
-    end;
+          QSLcfm := dmData.qQSOBefore.FieldByName('qslr_date').AsString + '  '+
+                    dmData.qQSOBefore.FieldByName('band').AsString +'  QSL rcvd';
+    if not dmData.qQSOBefore.FieldByName('eqsl_qslrdate').IsNull then
+          eQSLcfm := dmData.qQSOBefore.FieldByName('eqsl_qslrdate').AsString + '  '+
+                     dmData.qQSOBefore.FieldByName('band').AsString +'  eQSL rcvd';
+
     dmSatellite.GetListOfSatellites(cmbSatellite, dmData.qQSOBefore.FieldByName('satellite').AsString);
     dmSatellite.GetListOfPropModes(cmbPropagation, dmData.qQSOBefore.FieldByName('prop_mode').AsString);
     edtRXFreq.Text := FloatToStr(dmData.qQSOBefore.FieldByName('rxfreq').AsFloat);
@@ -6384,6 +6502,9 @@ begin
     edtContestSerialReceived.Text := dmData.qQSOBefore.FieldByName('srx').AsString;
     edtContestExchangeMessageSent.Text := dmData.qQSOBefore.FieldByName('stx_string').AsString;
     edtContestExchangeMessageReceived.Text := dmData.qQSOBefore.FieldByName('srx_string').AsString;
+    Op := dmData.qQSOBefore.FieldByName('operator').AsString;
+    ShowOperator;
+    EditViewMyLoc :=  dmData.qQSOBefore.FieldByName('my_loc').AsString;
   end
   else begin
     cmbProfiles.Text := dmData.GetProfileText(dmData.qCQRLOG.FieldByName('profile').AsInteger);
@@ -6422,20 +6543,24 @@ begin
     edtContestSerialReceived.Text := dmData.qCQRLOG.FieldByName('srx').AsString;
     edtContestExchangeMessageSent.Text := dmData.qCQRLOG.FieldByName('stx_string').AsString;
     edtContestExchangeMessageReceived.Text := dmData.qCQRLOG.FieldByName('srx_string').AsString;
+
+
     if lotw_qslr = 'L' then
-    begin
-      lblCfmLoTW.Caption := 'QSO confirmed by LoTW ' + dmData.qCQRLOG.FieldByName('lotw_qslrdate').AsString;
-      lblCfmLoTW.Visible := True
-    end;
+           LoTWcfm := dmData.qCQRLOG.FieldByName('lotw_qslrdate').AsString + '  '+
+                      dmData.qCQRLOG.FieldByName('band').AsString +'  LoTW cfmd' ;
     if not dmData.qCQRLOG.FieldByName('qslr_date').IsNull then
-    begin
-      lblQSLRcvdDate.Caption := 'QSL rcvd on '+dmData.qCQRLOG.FieldByName('qslr_date').AsString;
-      lblQSLRcvdDate.Visible := True
-    end;
+           QSLcfm := dmData.qCQRLOG.FieldByName('qslr_date').AsString + '  '+
+                     dmData.qCQRLOG.FieldByName('band').AsString +'  QSL rcvd ';
+    if not dmData.qCQRLOG.FieldByName('eqsl_qslrdate').IsNull then
+      eQSLcfm := dmData.qCQRLOG.FieldByName('eqsl_qslrdate').AsString + '  '+
+                 dmData.qCQRLOG.FieldByName('band').AsString +'  eQSL rcvd';
+
     dmSatellite.GetListOfSatellites(cmbSatellite, dmData.qCQRLOG.FieldByName('satellite').AsString);
     dmSatellite.GetListOfPropModes(cmbPropagation, dmData.qCQRLOG.FieldByName('prop_mode').AsString);
     edtRXFreq.Text := FloatToStr(dmData.qCQRLOG.FieldByName('rxfreq').AsFloat);
     Op := dmData.qCQRLOG.FieldByName('operator').AsString;
+    ShowOperator;
+    EditViewMyLoc :=  dmData.qCQRLOG.FieldByName('my_loc').AsString;
   end;
   if (edtRXFreq.Text = '0') then
     edtRXFreq.Text := '';
@@ -6691,14 +6816,19 @@ procedure TfrmNewQSO.SetEditLabel;
 begin
   lblCall.Caption    := 'Call (edit mode):';
   lblCall.Font.Color := clRed;
-  Caption := dmUtils.GetNewQSOCaption('Edit QSO')
+  Caption := dmUtils.GetNewQSOCaption('Edit QSO');
+  cbOffline.Checked :=true;
 end;
 
 procedure TfrmNewQSO.UnsetEditLabel;
 begin
   lblCall.Caption    := 'Call:';
   lblCall.Font.Color := clDefault;
-  Caption := dmUtils.GetNewQSOCaption('New QSO')
+  Caption := dmUtils.GetNewQSOCaption('New QSO');
+  cbOffline.Checked := cqrini.ReadBool('TMPQSO','OFF',False);
+  sbNewQSO.Panels[0].Text := cMyLoc + CurrentMyLoc;
+  cmbProfiles.Text := UsrAssignedProfile;
+  Op := cqrini.ReadString('TMPQSO','OP','');
 end;
 
 procedure TfrmNewQSO.CheckCallsignClub;
@@ -7006,20 +7136,22 @@ begin
       HisName:= edtName.Text;
       tmp := 'DX ' + FloatToStrF(f,ffFixed,8,1) + ' ' + call;
       ModRst := cmbMode.Text+' '+ rst_s;
-      HMLoc := copy(sbNewQSO.Panels[0].Text,Length(cMyLoc)+1,6)+'<'+dmSatellite.GetPropShortName(cmbPropagation.Text)+'>'+edtGrid.Text;
+      HMLoc := CurrentMyLoc+'<'+dmSatellite.GetPropShortName(cmbPropagation.Text)+'>'+edtGrid.Text;
 
     end;
   end
   else begin
     dmData.Q.Close;
     if dmData.trQ.Active then dmData.trQ.Rollback;
-    dmData.Q.SQL.Text := 'SELECT callsign,freq FROM cqrlog_main ORDER BY qsodate DESC, time_on DESC LIMIT 1';
+    dmData.Q.SQL.Text := 'SELECT callsign,freq,rxfreq FROM cqrlog_main ORDER BY qsodate DESC, time_on DESC LIMIT 1';
     dmData.trQ.StartTransaction;
     if dmData.DebugLevel >=1 then
       Writeln(dmData.Q.SQL.Text);
     dmData.Q.Open();
     call := dmData.Q.Fields[0].AsString;
     freq := FloatToStrF(dmData.Q.Fields[1].AsCurrency*1000,ffFixed,8,1);
+    if (cqrini.ReadBool('DXCluster','SpotRX',False)) then
+      freq := FloatToStrF(dmData.Q.Fields[2].AsCurrency*1000,ffFixed,8,1);
     dmData.Q.Close();
     dmData.trQ.Rollback;
     tmp  := 'DX ' + freq + ' ' + call;
@@ -7030,7 +7162,7 @@ begin
       Writeln(dmData.Q.SQL.Text);
     dmData.Q.Open();
     ModRst  := dmData.Q.Fields[0].AsString+' '+dmData.Q.Fields[1].AsString;
-    HMLoc   := dmData.Q.Fields[2].AsString+'<'+dmData.Q.Fields[3].AsString+'>'+dmData.Q.Fields[4].AsString;
+    HMLoc   := dmData.Q.Fields[4].AsString+'<'+dmData.Q.Fields[3].AsString+'>'+dmData.Q.Fields[2].AsString;
     rst_s := dmData.Q.Fields[1].AsString;
     stx :=  dmData.Q.Fields[5].AsString;
     stx_str:=dmData.Q.Fields[6].AsString;
@@ -7591,7 +7723,13 @@ begin
   end
 end;
 
-
+procedure  TfrmNewQSO.ShowOperator;
+Begin
+  if (Op<>UpperCase(cqrini.ReadString('Station', 'Call', ''))) and (Op<>'') then
+         sbNewQSO.Panels[2].Text := cOperator+Op
+       else
+         sbNewQSO.Panels[2].Text :='';
+end;
 end.
 
 

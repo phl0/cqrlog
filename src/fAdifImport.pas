@@ -92,6 +92,7 @@ type
   TfrmAdifImport = class(TForm)
     btnClose: TButton;
     btnImport: TButton;
+    chkOverrideLocator: TCheckBox;
     chkRemember: TCheckBox;
     chkFilterDateRange: TCheckBox;
     chkLotOfQSO: TCheckBox;
@@ -257,70 +258,71 @@ function TfrmAdifImport.fillTypeVariableWithTagData(h:longint;var data:string;va
     fillTypeVariableWithTagData:=true;
     data := trim(data);
     case h of
-      h_BAND:d.BAND:=data;
-      h_CALL:d.CALL:=data;
-      h_CNTY:d.CNTY:=data;
-      h_COMMENT:d.COMMENT:=data;
-      h_CONT:d.CONT:=data;
-      h_DXCC:d.DXCC:=data;
-      h_EQSL_QSLRDATE:d.EQSL_QSLRDATE:=data;
-      h_EQSL_QSLSDATE:d.EQSL_QSLSDATE:=data;
-      h_EQSL_QSL_RCVD:d.EQSL_QSL_RCVD:=data;
-      h_EQSL_QSL_SENT:d.EQSL_QSL_SENT:=data;
-      h_FREQ:d.FREQ:=data;
-      h_GRIDSQUARE:d.GRIDSQUARE:=dmUtils.StdFormatLocator(data);
-      h_IOTA:d.IOTA:=data;
-      h_ITUZ:d.ITUZ:=data;
-      h_LOTW_QSLRDATE:d.LOTW_QSLRDATE:=data;
-      h_LOTW_QSLSDATE:d.LOTW_QSLSDATE:=data;
-      h_LOTW_QSL_RCVD:d.LOTW_QSL_RCVD:=data;
-      h_LOTW_QSL_SENT:d.LOTW_QSL_SENT:=data;
+      h_BAND                          :d.BAND:=data;
+      h_CALL                          :d.CALL:=data;
+      h_CNTY                          :d.CNTY:=data;
+      h_COMMENT                       :d.COMMENT:=data;
+      h_CONT                          :d.CONT:=data;
+      h_DXCC                          :d.DXCC:=data;
+      h_EQSL_QSLRDATE                 :d.EQSL_QSLRDATE:=data;
+      h_EQSL_QSLSDATE                 :d.EQSL_QSLSDATE:=data;
+      h_EQSL_QSL_RCVD                 :d.EQSL_QSL_RCVD:=data;
+      h_EQSL_QSL_SENT                 :d.EQSL_QSL_SENT:=data;
+      h_FREQ                          :d.FREQ:=data;
+      h_GRIDSQUARE                    :d.GRIDSQUARE:=dmUtils.StdFormatLocator(data);
+      h_IOTA                          :d.IOTA:=data;
+      h_ITUZ                          :d.ITUZ:=data;
+      h_LOTW_QSLRDATE                 :d.LOTW_QSLRDATE:=data;
+      h_LOTW_QSLSDATE                 :d.LOTW_QSLSDATE:=data;
+      h_LOTW_QSL_RCVD                 :d.LOTW_QSL_RCVD:=data;
+      h_LOTW_QSL_SENT                 :d.LOTW_QSL_SENT:=data;
       // DL7OAP: because MODE-field in cqrlog database does not match completely
       // with MODE field of ADIF specification, we have to transfer the
-      // ADIF MODES/SUBMODES (JS8, FT4, PKT) to MODE-field in cqrlog database
-      h_MODE: begin
-        if data = 'PKT' then d.MODE:='PACKET'
-        else d.MODE:=data
-      end;
-      h_SUBMODE: begin
-        if data = 'FT4' then d.MODE:=data;
-        if data = 'JS8' then d.MODE:=data
-      end;
-      h_MY_GRIDSQUARE:d.MY_GRIDSQUARE:=dmUtils.StdFormatLocator(data);
-      h_NAME:d.NAME:=data;
-      h_NOTES:d.NOTES:=data;
-      h_PFX:d.PFX:=data;
-      h_QSLMSG:d.QSLMSG:=data;
-      h_QSLRDATE:d.QSLRDATE:=data;
-      h_QSLSDATE:d.QSLSDATE:=data;
-      h_QSL_RCVD:d.QSL_RCVD:=data;
-      h_QSL_SENT:d.QSL_SENT:=data;
-      h_QSL_VIA:d.QSL_VIA:=data;
-      h_QSO_DATE:d.QSO_DATE:=data;
-      h_QTH:d.QTH:=data;
-      h_RST_RCVD:d.RST_RCVD:=data;
-      h_RST_SENT:d.RST_SENT:=data;
-      h_SRX:d.SRX:=data;
-      h_SRX_STRING:d.SRX_STRING:=data;
-      h_STX:d.STX:=data;
-      h_STX_STRING:d.STX_STRING:=data;
-      h_CONTEST_ID:d.CONTEST_ID:=data;
-      h_DARC_DOK:d.DARC_DOK:=data;
-      h_TIME_OFF:d.TIME_OFF:=data;
-      h_TIME_ON:d.TIME_ON:=data;
-      h_TX_PWR:d.TX_PWR:=data;
-      h_APP_CQRLOG_DXCC:d.APP_CQRLOG_DXCC:=data;
-      h_APP_CQRLOG_QSLS:d.APP_CQRLOG_QSLS:=data;
-      h_APP_CQRLOG_PROFILE:d.APP_CQRLOG_PROFILE:=data;
-      h_APP_CQRLOG_QSLR:d.APP_CQRLOG_QSLR:=data;
-      h_APP_CQRLOG_COUNTY:d.APP_CQRLOG_COUNTY:=data;
-      h_CQZ:d.CQZ:=data;
-      h_STATE:d.STATE:=data;
-      h_AWARD:d.AWARD:=data;
-      h_PROP_MODE:d.PROP_MODE:=data;
-      h_SAT_NAME:d.SAT_NAME:=data;
-      h_FREQ_RX:d.FREQ_RX:=data;
-      h_OP:d.OP:=data
+      // ADIF MODES/SUBMODES (JS8, FT4, FST4,PKT) to MODE-field in cqrlog database
+      h_MODE                          : begin
+                                          if data = 'PKT' then d.MODE:='PACKET'
+                                          else d.MODE:=data
+                                        end;
+      h_SUBMODE                       : begin
+                                          if data = 'FT4' then d.MODE:=data;
+                                          if data = 'FST4' then d.MODE:=data;
+                                          if data = 'JS8' then d.MODE:=data
+                                        end;
+      h_MY_GRIDSQUARE                   :d.MY_GRIDSQUARE:=dmUtils.StdFormatLocator(data);
+      h_NAME                            :d.NAME:=data;
+      h_NOTES                           :d.NOTES:=data;
+      h_PFX                             :d.PFX:=data;
+      h_QSLMSG                          :d.QSLMSG:=data;
+      h_QSLRDATE                        :d.QSLRDATE:=data;
+      h_QSLSDATE                        :d.QSLSDATE:=data;
+      h_QSL_RCVD                        :d.QSL_RCVD:=data;
+      h_QSL_SENT                        :d.QSL_SENT:=data;
+      h_QSL_VIA                         :d.QSL_VIA:=data;
+      h_QSO_DATE                        :d.QSO_DATE:=data;
+      h_QTH                             :d.QTH:=data;
+      h_RST_RCVD                        :d.RST_RCVD:=data;
+      h_RST_SENT                        :d.RST_SENT:=data;
+      h_SRX                             :d.SRX:=data;
+      h_SRX_STRING                      :d.SRX_STRING:=data;
+      h_STX                             :d.STX:=data;
+      h_STX_STRING                      :d.STX_STRING:=data;
+      h_CONTEST_ID                      :d.CONTEST_ID:=data;
+      h_DARC_DOK                        :d.DARC_DOK:=data;
+      h_TIME_OFF                        :d.TIME_OFF:=data;
+      h_TIME_ON                         :d.TIME_ON:=data;
+      h_TX_PWR                          :d.TX_PWR:=data;
+      h_APP_CQRLOG_DXCC                 :d.APP_CQRLOG_DXCC:=data;
+      h_APP_CQRLOG_QSLS                 :d.APP_CQRLOG_QSLS:=data;
+      h_APP_CQRLOG_PROFILE              :d.APP_CQRLOG_PROFILE:=data;
+      h_APP_CQRLOG_QSLR                 :d.APP_CQRLOG_QSLR:=data;
+      h_APP_CQRLOG_COUNTY               :d.APP_CQRLOG_COUNTY:=data;
+      h_CQZ                             :d.CQZ:=data;
+      h_STATE                           :d.STATE:=data;
+      h_AWARD                           :d.AWARD:=data;
+      h_PROP_MODE                       :d.PROP_MODE:=data;
+      h_SAT_NAME                        :d.SAT_NAME:=data;
+      h_FREQ_RX                         :d.FREQ_RX:=data;
+      h_OP                              :d.OP:=data
     else begin
         { writeln('Unnamed...>',pom,'<');fillTypeVariableWithTagData:=false;exit;}
       end;
@@ -365,7 +367,7 @@ begin
   if (d.st>0) and (d.CALL <> '') and (d.QSO_DATE <> '') then
   begin
     //filling and optimize data in variable d
-    if not dmUtils.IsLocOK(d.MY_GRIDSQUARE) then
+    if (not dmUtils.IsLocOK(d.MY_GRIDSQUARE)) or chkOverrideLocator.Checked then
       d.MY_GRIDSQUARE := FMyLoc;
     d.CALL := UpperCase(d.CALL);
     if (d.MODE = 'USB') or (d.MODE ='LSB') then
@@ -418,9 +420,12 @@ begin
     d.IOTA  := UpperCase(d.IOTA);
     d.NAME  := Copy(d.NAME, 1 ,40);
     d.QTH   := Copy(d.QTH, 1, 60);
-    d.DARC_DOK := ReplaceRegExpr('Ø', d.DARC_DOK, '0', True);
-    d.DARC_DOK := LeftStr(Uppercase(ReplaceRegExpr('[^a-zA-Z0-9]',d.DARC_DOK, '', True)), 12);
-
+    //workaround for 'TRegExpr exec: empty input string' error in fpc compiler
+    if (trim(d.DARC_DOK) <> '') then
+    begin
+      d.DARC_DOK := ReplaceRegExpr('Ø', d.DARC_DOK, '0', True);
+      d.DARC_DOK := LeftStr(Uppercase(ReplaceRegExpr('[^a-zA-Z0-9]',d.DARC_DOK, '', True)), 12);
+    end;
     d.QSL_VIA := UpperCase(d.QSL_VIA);
     if Pos('QSL VIA',d.QSL_VIA) > 0 then
       d.QSL_VIA := copy(d.QSL_VIA,9,Length(d.QSL_VIA)-1);
@@ -525,7 +530,8 @@ begin
     begin
       dmData.Q.Close;
       dmData.Q.SQL.Text := 'SELECT COUNT(*) FROM cqrlog_main WHERE qsodate = ' + QuotedStr(d.QSO_DATE) +
-                           ' AND time_on = ' + QuotedStr(d.TIME_ON) + ' AND callsign = '+QuotedStr(d.CALL);
+                           ' AND time_on = ' + QuotedStr(d.TIME_ON) + ' AND callsign = '+QuotedStr(d.CALL)+
+                           ' AND band = ' + QuotedStr(d.BAND) + ' AND mode = '+QuotedStr(d.MODE);
 
       if dmData.DebugLevel >=1 then Writeln(dmData.Q.SQL.Text);
       if dmData.trQ.Active then
@@ -534,15 +540,14 @@ begin
       dmData.Q.Open;
       if dmData.Q.Fields[0].AsInteger > 0 then
       begin
-
+        tmp:= d.QSO_DATE+' '+d.TIME_ON+' '+d.CALL+' '+d.BAND+' '+d.MODE+
+              #13'It looks like this QSO is in the log.'#13'Do you really want to import it again?';
         if not chkRemember.Checked then
-             Qvalue:= Application.MessageBox('It looks like this QSO is in the log.'#13'Do you really want to import it again?',
-                                  'Question',MB_ICONQUESTION +  MB_YESNOCANCEL)
+             Qvalue:= Application.MessageBox(Pchar(tmp),'Question',MB_ICONQUESTION +  MB_YESNOCANCEL)
           else
           if not Qasked then
               begin
-                Qvalue:= Application.MessageBox('It looks like this QSO is in the log.'#13'Do you really want to import it again?',
-                                  'Question',MB_ICONQUESTION +  MB_YESNOCANCEL);
+                Qvalue:= Application.MessageBox(Pchar(tmp),'Question',MB_ICONQUESTION +  MB_YESNOCANCEL);
                 Qasked := true;
               end;
 
@@ -561,6 +566,7 @@ begin
                       exit;
                      end;
         end;
+        tmp:='';
       end;
       dmData.Q.Close();
       dmData.trQ.Rollback
@@ -753,7 +759,12 @@ begin
   lblComplete.Visible := False;
   GlobalProfile := dmData.GetNRFromProfile(cmbProfiles.Text);
   FMyPower := cqrini.ReadString('NewQSO', 'PWR', '5 W');
-  FMyLoc   := cqrini.ReadString('Station', 'LOC', '');
+  // Read locator from selected profile
+  FMyLoc   := dmData.GetMyLocFromProfile(cmbProfiles.Text);
+  // If that failed use default configured locator
+  if not dmUtils.IsLocOK(FMyLoc) then
+     FMyLoc   := cqrini.ReadString('Station', 'LOC', '');
+  if dmData.DebugLevel >=1 then WriteLn('Using '+FMyLoc+' as locator for imports');
   RecNR := 0;
   WrongRecNr := 0;
   FFilteredOutRecNr := 0;
@@ -827,6 +838,7 @@ begin
   end;
 end;
 
+
 function TfrmAdifImport.ValidateFilter: boolean;
 begin
   Result := true;
@@ -870,11 +882,15 @@ end;
 procedure TfrmAdifImport.chkFilterDateRangeChange(Sender: TObject);
 begin
   pnlFilterDateRange.Enabled := chkFilterDateRange.Checked;
+  lblFilteredOut.Visible := chkFilterDateRange.Checked;
+  lblFilteredOutCount.Visible := chkFilterDateRange.Checked;
 end;
 
 procedure TfrmAdifImport.FormShow(Sender: TObject);
 begin
   lblComplete.Visible := False;
+  lblFilteredOut.Visible := chkFilterDateRange.Checked;
+  lblFilteredOutCount.Visible := chkFilterDateRange.Checked;
   dmUtils.LoadFontSettings(self);
   Qasked:=false;
 end;
@@ -901,7 +917,7 @@ begin
     AssignFile(f,dmData.UsrHomeDir + ERR_FILE);
     Rewrite(f);
     Writeln(f,'ADIF export from CQRLOG for Linux version ' + dmData.VersionString);
-    Writeln(f,'Copyright (C) ',YearOf(now),' by Petr, OK7AN and Martin, OK1RR');
+    Writeln(f,'Copyright (C) ',YearOf(now),' by Petr, OK2CQR and Martin, OK1RR');
     Writeln(f,'Internet: http://www.cqrlog.com');
     Writeln(f,'');
     Writeln(f,'ERROR QSOs FROM ADIF IMPORT');
